@@ -1,0 +1,210 @@
+MAPLE IDLE - ETAPA 1
+Abre index.html con doble clic (Chrome/Edge). No necesita servidor.
+
+CONTROLES
+  Arrastra con el mouse = mover la camara (camara libre)
+  A = auto (idle) / manual     D = modo debug (dibuja plataformas)
+  F = acelerar x4              Rueda = zoom
+  Manual: flechas mover, Espacio saltar, Arriba/Abajo cuerdas, Z atacar
+
+SI EL MAPA SE VE DESALINEADO
+  Pulsa D, y mueve el fondo con I/J/K/L (Shift = 10px) hasta que las
+  lineas verdes cuadren con las plataformas. Se guarda solo.
+
+SPRITES (carpeta assets/, frames numerados desde 0, .png)
+  char/warrior/ stand1_N walk1_N jump_N swingO1_N swingO2_N
+  mob/snail_blue/ y mob/snail_red/  move_N hit_N
+  map/henesys.png
+Si un sprite se ve movido, edita FRAME_OFFSETS al inicio de game.js.
+Si miran al reves, cambia FACE_LEFT a false.
+
+ETAPA 2: EXP, NIVELES Y MESOS
+  - El progreso (nivel, EXP, mesos) se guarda solo en este navegador.
+  - Shift+R reinicia el progreso a nivel 1.
+  - exptable.js: tabla de EXP. Lv 1-30 de MapleStory (de memoria); despues es
+    una formula aproximada. Reemplaza el arreglo con la tabla real de tu servidor.
+  - sim.js (arriba, mobRewards): EXP y mesos por kill de cada caracol.
+  - El mapa trae 3 tipos de mob (ids 9010028, 9010029, 9010032) pero solo hay
+    2 sprites; el 9010032 usa el caracol azul por ahora (mobTypes en sim.js).
+
+ETAPA 3: STATS, EQUIPO E INVENTARIO
+  - Tecla E (o el boton "Inventario") abre la ventana: equipo, stats, y el
+    inventario con pestanas EQUIP y USE (128 slots cada una).
+  - Clic en un equipo del inventario = equiparlo. Clic en un slot de equipo
+    = desequiparlo. Clic derecho en un objeto = descartarlo.
+  - El dano ahora sale de STR/DEX y del ATT del equipo (items.js, calcStats).
+    El reparto de stats por nivel (warrior: +4 STR, +1 DEX) es una propuesta;
+    ajustalo en CLASSES dentro de items.js.
+  - items.js: catalogo de objetos (nombres y valores de EJEMPLO) y tabla de drops
+    (rollDrop). Iconos opcionales en assets/item/<id>.png (ej: sword_1.png).
+  - Las Red Potion y Scroll Piece se guardan pero aun no tienen efecto.
+
+ETAPA 4 (parte 1): SKILLS, SP, MP Y AUTO FARM - Slash Blast
+  - SP: 3 por nivel de personaje; cada nivel de skill cuesta 1 SP. Se gasta en
+    la pestana SKILLS (tecla E). Con SP sin gastar aparece un aviso en la barra.
+  - Slash Blast (datos de 100.img.xml): dano 175+8*nivel %, MP 3+d(nivel/6),
+    hasta 6 enemigos, 200 px al frente. Maximo nivel 20.
+  - Animacion: frames 0-4 del efecto = carga (personaje parado); desde el frame 5
+    el personaje hace swingO2. El golpe cae a los 0.59 s. Total 0.9 s.
+  - Auto farm: si la skill esta aprendida, marcada "Auto farm" y hay enemigos en
+    su area, el personaje la usa solo (consume MP). Manual: tecla X.
+  - MP: maximo 10 + 3 por nivel, regenera 3% del maximo por segundo
+    (VALORES PROVISIONALES, ajustalos en stepExtras de sim.js).
+  - skills.js: datos de la skill, frames y origenes del efecto.
+  - Pendientes del XML de 1st job: skills 1001008, 1000003 y 1000009 (falta
+    nombre, icono y que hacen en el juego; algunas necesitan vida/defensa/buffs).
+
+ETAPA 5 (parte 1): VARIOS PERSONAJES Y PARTY
+  - La primera vez te pide nombre y clase (solo Warrior tiene sprites/stats por ahora).
+  - Lista de personajes a la izquierda: clic para seleccionar, "+ Nuevo personaje" (max. 6;
+    mas adelante se limitara con cupones de la tienda). Teclas 1-6 tambien seleccionan,
+    y un clic sobre un personaje en el mapa lo selecciona.
+  - Por personaje: nivel, EXP, SP, MP, skills y equipo puesto. Compartidos: inventario
+    (EQUIP/USE) y mesos.
+  - Party: el que mata recibe 100% de la EXP y los demas 50%, salvo que la diferencia
+    de nivel sea de 25 o mas.
+  - Los guardados de etapas anteriores se convierten en un personaje llamado "Guerrero".
+  - Pendiente (parte 2): HP, dano por contacto de los enemigos, muerte y revivir.
+
+ETAPA 5 (parte 2): COMBATE - HP, MUERTE, POCIONES
+  - HP por personaje (50 + 22 por nivel; PROVISIONAL, ajusta maxHp() en sim.js). Regenera
+    ~0.3%/s. Al subir de nivel se recupera HP y MP.
+  - Los enemigos danan al tocar (Blue Snail 8, Red Snail 12; ver mobRewards en sim.js) y
+    despues hay 2 s de invulnerabilidad (el personaje parpadea).
+  - Muerte: pierde el 5% de la EXP necesaria para el siguiente nivel (nunca baja de nivel
+    ni de 0), aparece una lapida y revive a los 10 s en el inicio del mapa con HP completo.
+  - El ataque normal golpea a UN solo enemigo (el mas cercano). Para varios: skills.
+  - Pociones: Red Potion cura 100 HP, Blue Potion cura 100 MP. Clic en una pocion en la pestana
+    USE la asigna al personaje seleccionado. En la ventana (E) ajustas a que % de HP/MP la usa
+    (numero o barra). Se consumen del inventario compartido, con 1 s de espera entre pociones.
+  - Iconos en assets/item/: red_potion.png, blue_potion.png, scroll_piece.png.
+
+=== ETAPA 6 (parte 1): SEGUNDO MAPA ===
+- Nuevo mapa: Mushroom Forest (100020300). Archivos: mapdata_mushroom.js, maps.js (registro de mapas), assets/map/mushroom_forest.png, assets/mob/blue_mushroom/.
+- Cada personaje tiene su propio mapa; puedes tener personajes farmeando en mapas distintos a la vez. Se cambia con el selector de mapa (arriba a la izquierda) para el personaje seleccionado. La vista muestra el mapa del personaje seleccionado. El mapa se guarda.
+- La EXP de party (50%) solo se reparte entre personajes que estén en el MISMO mapa.
+- Blue Mushroom: hp 80, exp 14, mesos 15-35, daño por contacto 20 -> VALORES PROVISIONALES (faltan los datos reales de Mob.wz). Los ids 2220100 y 2220110 usan el mismo sprite por ahora.
+- Offset del render: x=5092 y=1837 (calibrado a ojo, se ve bien). Si hace falta ajustar: D + I/J/K/L (se guarda por mapa).
+- Para agregar un mapa nuevo: convertir el XML, agregar su entrada en maps.js y sus sprites de enemigos.
+
+=== ETAPA 6 (parte 2): MAPA MUNDIAL ===
+- Botón "Mapa (M)" junto al de Inventario. Elige un mapa de la lista (los bloqueados 🔒 aún no tienen mapa jugable) y pulsa "Mover personajes...": marca cuáles viajan (los muertos o los que ya están allí salen deshabilitados). Mover ya no cambia solo al personaje seleccionado; el selector antiguo se eliminó.
+- La lista de personajes (izquierda) muestra el mapa de cada uno.
+- Blue Mushroom con datos reales de Mob.wz: Lv 15, HP 250, EXP 26, daño por contacto 63 (PADamage). Los mesos siguen provisionales. El Crying Blue Mushroom (2220110) comparte datos y por ahora sprite.
+- Ojo: un personaje Lv 1 (50 HP) muere de un golpe en Mushroom Forest. Es lo esperado por ser mapa de Lv 15, pero habrá que decidir si se bloquea el acceso por nivel o se agrega defensa.
+
+=== ETAPA 7 (parte 1): INTERFAZ ESTILO MAPLESTORY ===
+- Ventanas con los sprites originales (UIWindow.img de tu servidor): Item Inventory (tecla I) y Equipment Inventory (tecla E), arrastrables, con pestañas Equip/Use, scroll, mesos y tooltips al pasar el mouse. Su posición se guarda.
+- Equip: clic en un objeto del inventario lo equipa; clic en una ranura del Equipment lo desequipa. Use: clic en una poción la asigna al personaje seleccionado. Clic derecho en el inventario descarta.
+- Barra superior: Equip (E) · Inventario (I) · Mapa (M) · Personaje (C). "Personaje" (C) es el panel provisional con stats, pociones y skills; se reemplazará por las ventanas Stat y Skill originales en las siguientes partes.
+- Los iconos de equipos aún no existen (solo pociones y scroll piece): se ven como cuadros con el nombre. Cuando tengas los iconos, ponlos en assets/item/<id>.png.
+- tools/wzimg.py convierte un .img crudo del WZ en PNG + tree.json con posiciones (python3 wzimg.py archivo.img carpeta).
+
+=== ETAPA 7 (parte 2): STAT Y SKILL ===
+- Character Stat (tecla S): ventana original con nombre, job, nivel, HP/MP/EXP, STR/DEX/INT/LUK (con el bonus del equipo) y botón DETAIL con el panel de ataque (daño mín~máx, velocidad, salto). No hay puntos de AP porque los stats suben solos por nivel.
+- Skill Inventory (tecla K): ventana original con la lista de skills, botón rojo "+" para gastar SP, casilla "Auto" (auto farm) y tooltip con daño/MP. Solo hay Slash Blast por ahora.
+- El panel antiguo se redujo a "Pociones (P)" (HP/MP automáticos por personaje).
+- Teclas: I inventario, E equip, S stat, K skill, P pociones, M mapa. Con el modo debug (D) activo, las teclas I/K se usan para calibrar el mapa.
+
+- Ajuste: las ventanas ahora salen al tamaño original del sprite (la mitad de antes). Si las quieres más grandes: en la consola del navegador (F12) escribe localStorage.setItem('maple_uiscale', '1.5') y recarga.
+- Corrección: el botón "+" de la ventana Skill era invisible (el sprite es un enlace a Basic.img que mi lector no había resuelto); ahora usa el sprite de Basic/BtUP.
+
+=== ETAPA 7 (parte 3): BARRA INFERIOR ===
+- La barra de abajo queda solo con HP, MP y EXP (EXP en verde). Se quitaron SP y mesos (los mesos se ven en el Inventario, los SP en la ventana Skill).
+- Nombre y nivel del personaje seleccionado, en grande, en la esquina inferior izquierda.
+
+=== ETAPA 8 (parte 1): TIENDA ===
+- Ventana Shop original (tecla T o botón "Tienda (T)"). Izquierda: lo que vende el NPC (elige y pulsa BUY ITEM; te pide la cantidad). Derecha: tu inventario (pestañas Equip/Use) para vender con SELL ITEM; LEAVE STORE cierra.
+- Precios (items.js, lista SHOP): Red Potion 100 mesos, Blue Potion 50 mesos, "Scroll for Glove for ATT 60%" = 10 Scroll Pieces (PLACEHOLDER: el scroll aún no tiene efecto; cambia el precio/cantidad ahí).
+- Venta al NPC (provisional): Red 50, Blue 25, Scroll Piece 20, scroll 100, equipo 20 + 15 por nivel requerido. Se cambia con la propiedad sell de cada objeto en items.js.
+- Icono del scroll: assets/item/scroll_glove_att60.png.
+- tools/wzimg.py ahora resuelve los enlaces internos del .img (había sprites "vacíos" que apuntaban a otro nodo); avisa de los que apuntan a Basic.img.
+
+=== ETAPA 9 (parte A): BUFFS Y LISTAS DE PERSONAJES ===
+- Sistema de buffs (buffs.js + sim.js): efectos con duración por personaje; los de tipo party afectan a todos los personajes del MISMO mapa; lanzar uno ya activo renueva su duración; al morir se pierden. Haste (provisional): +40% velocidad de movimiento, 60 s. Edita los valores en buffs.js. Los buffs no se guardan.
+- Tecla B = PRUEBA temporal: lanza Haste al party del mapa (luego lo hará la skill del Thief). Su icono va en assets/skill/haste_icon.png (si no existe se ve una "H" azul).
+- Lista lateral: solo los personajes del mapa que estás viendo, sin localización, con los iconos de sus buffs y el tiempo restante. Las teclas 1-9 eligen según esa lista.
+- Manager de personajes (tecla C o botón "Personajes (C)"): todos los personajes con nivel, mapa, estado y buffs; clic = seleccionar y ver su mapa; botón "+ Nuevo personaje" (por ahora máx. 6, se sube en chars.js: MAXC).
+
+=== ETAPA 9 (parte B): THIEF (ASSASSIN) ===
+- Nueva clase jugable: Thief (se elige al crear personaje). Ataca a DISTANCIA: cada volea lanza 2 estrellas y cada estrella pega 2 veces (4 golpes), a UN solo objetivo, hasta 230 px al frente. Ataca más rápido que el Warrior (3 frames de 100 ms contra 140 ms). Estrellas infinitas (más adelante serán su arma secundaria).
+- Stats propuestos (provisionales, en items.js > CLASSES.thief): base STR 4 / DEX 5 / INT 4 / LUK 12; +4 LUK y +1 DEX por nivel; daño = (LUK*3.6 + DEX) * ATT / 100.
+- Cada golpe hace 35% del daño base (sim.js > DEFAULT_CFG.classes.thief.hitMul). Medido en 300 s sin skills: el Thief hace ~34% más kills que el Warrior (213 contra 159 en Henesys Lv 1), porque el Warrior compensará con skills de área. Ajusta hitMul si lo quieres distinto.
+- Garras de ejemplo: claw_1..claw_4 (solo Thief). Las espadas ahora son solo del Warrior; el sistema bloquea equipar armas de otra clase.
+- La estrella usa 2 frames (assets/skill/star_0/1.png) que se alternan en vuelo. Sprites del Thief en assets/char/thief/ (walk 6 frames, jump, throw 3 frames, alert 4 frames; stand propio incluido).
+- Las skills ahora son por clase: el Thief todavía no tiene (Haste va en la parte C). La ventana Skill muestra las de su clase.
+- Actualización: sprite de stand del Thief y los 2 frames de la estrella ya incluidos.
+
+ETAPA 9 (parte C): HASTE DEL THIEF
+- skills.js: skill 'haste' (cls thief, nivel máx 20, buff). Datos del XML (Decent Haste, solo nivel 1: MP 5, 200 s, velocidad 20, salto 10) escalados
+  de forma PROVISIONAL: velocidad 20% (Lv1) -> 40% (Lv20), duración 190+10*Lv s, MP 5+floor(Lv/4). Ajusta speed/duration/mpCon en skills.js.
+  El "jump" del XML no se aplica (cambiaría los saltos de la navegación del auto farm).
+- Efecto: assets/skill/haste/effect_0..8.png (origins del XML) y icono assets/skill/haste_icon.png; el personaje usa la pose "alert" (0.6 s).
+- Auto farm: el Thief la lanza solo (en el suelo, antes de elegir enemigo) cuando a alguien vivo del mapa le falta el buff o le quedan <10 s. Casilla "Auto" la desactiva.
+- Manual: tecla H. Se quitó la tecla B de prueba.
+- Falta: frames "affected" (aura sobre quien recibe el buff); por ahora solo se ve el efecto en el que lanza.
+- Pruebas: test_haste.js, browser_haste.js, browser_haste2.js
+
+ETAPA 10 (parte 1): EQUIPOS REALES DEL WZ
+- itemdata.js (GENERADO, no editar): 43 equipos con nombre, tipo, nivel, clase, requisitos y stats leídos de los .img de tu servidor. Iconos en assets/item/<id>.png.
+  Regenerar/añadir ítems:  1) wzimg.py de cada .img -> carpeta con tree.json   2) tools/build_items.py <lib> <Eqp/tree.json> <dirs...> (resuelve imágenes
+  compartidas entre .img)   3) tools/gen_itemdata.py <lib> <Eqp/tree.json> <juego> <ids...>
+- items.js: ajustes sobre los datos del WZ: los 5 "Beginner ..." no piden nivel/stats; Maple Sword solo Warrior; ids viejos (sword_1, claw_2...) se convierten
+  a equipo real al cargar un guardado.
+- Equipo inicial de todo personaje nuevo: Brand New Adventure Suit (Longcoat) + Brand New Adventure Shoes + arma inicial de su clase. Guardados viejos no lo reciben.
+- Overall: el Longcoat ocupa Top y Bottom; equiparlo devuelve el Bottom al inventario y equipar un Bottom devuelve el Longcoat (si no hay hueco se cancela).
+- Requisitos al equipar: clase, nivel y STR/DEX/INT/LUK base (sin equipo). Tooltip con nombre, slot, clase, REQ y stats (rojo si no los cumples).
+- Stats del equipo que cuentan: STR/DEX/INT/LUK, ATT, MATT, DEF (reduce el daño de contacto: def/(def+100), provisional), HP/MP máximos; ACC y AVOID solo se muestran
+  en Stat > Detail.
+- Thief: ATT +15 PROVISIONAL (starAtt en items.js) hasta que las estrellas sean su arma secundaria.
+- Icono del arco inicial resuelto con 01452002.img. Falta: el equipo aún NO se ve puesto en el personaje (siguiente etapa: personaje por capas).
+- Pruebas: test_items.js (43 ítems, requisitos, overall, DEF, HP), browser_items.js
+
+ETAPA 11 (parte 1): PERSONAJE POR CAPAS
+- layers.js: arma cada fotograma = cuerpo + cabeza + cara + pelo + equipos puestos (como el cliente de MapleStory): cada capa se engancha a puntos neck/navel/hand/brow,
+  se ordena con zmap y se oculta lo que tapa un equipo de mayor prioridad (vslot/smap, ej. un casco oculta parte del pelo). Caché por apariencia+equipo+acción+frame.
+- layerdata.js (GENERADO) + assets/layers/<id>.png (un atlas por ítem). Se regenera con tools/build_layers.py
+  (python3 tools/build_layers.py <wz_lib> <wz_base/out> . 00002000 00012000 <caras> <pelos> <ids de equipo con 8 dígitos>).
+- Apariencia por defecto: Warrior pelo 36787 / cara 23100; Thief pelo 36794 / cara 23301 (guardada por personaje en 'look'; aún no se puede elegir al crear).
+- Acciones usadas: stand1, walk1, jump, alert (Haste), swingO1/swingO2 (Warrior y Slash Blast) y swingO3 al lanzar estrellas (THROW_ACTION en game.js). shoot1 es la animación del ARCO: reservada para el Archer.
+- Si las capas aún no cargaron (o falta algún dato), se dibuja el sprite viejo de assets/char/ como respaldo.
+- Pendiente: cambiar de cara/pelo, expresiones (parpadeo), acciones extra (cuerda, agachado), arma secundaria visible, más equipos.
+- Pruebas: browser_layers.js (hoja de fotogramas), browser_layers2.js, browser_layers3.js
+
+ARREGLOS (después de la etapa 11 parte 1)
+- Thief: lanza estrellas con la animación swingO3 (shoot1 es la del arco, reservada para el Archer).
+- Tooltip de ítems al estilo MapleStory: usa las etiquetas pixeladas reales de UIWindow.img/ToolTip (REQ LEV/STR/DEX/INT/LUK con dígitos blancos/rojos según los cumplas,
+  insignias de clase naranjas/grises, categoría del ítem, velocidad de ataque) copiadas a assets/ui/tt/. El marco se imita con CSS (el original está en UIToolTip.img,
+  que no tenemos). El tooltip ahora va siempre por encima de todas las ventanas (z-index).
+- Inventario: la cuadrícula del fondo es fija, así que el scroll avanza de fila en fila (rueda, barra y arrastre encajan de 34 px) y los ítems siempre coinciden con los cuadros.
+- itemdata.js ahora incluye attackSpeed y número de mejoras (tuc).
+
+== ETAPA 12: cambios al Thief ==
+- Ataque normal del Thief: misma cadencia que el del Warrior (3 fotogramas x 140 ms + 0.12 s = 0.54 s por ataque). Antes era 0.36 s.
+- Nueva skill Lucky Seven (4001344, datos de 400.img): daño 110+4x %, MP 8+2*floor(x/6), 2 estrellas, nivel máx. 20, 1 enemigo al frente (230 px).
+  Usa la animación de lanzar estrellas (swingO3). Auto farm la usa sola si está aprendida, marcada en Auto y hay MP; si no, ataque normal.
+  Manual: tecla X = skill principal de la clase (Slash Blast / Lucky Seven).
+- Los efectos (lanzamiento y golpe) cambian según el nivel del personaje: base, 10, 15, 20 y 25 (assets/skill/lucky_seven/).
+- Prueba: node test_lucky.js (en /home/claude, fuera del zip)
+
+== ETAPA 12b: reiniciar partida ==
+- Tecla | (a la izquierda del 1; en el código "Backquote") abre "¿Quieres reiniciar la partida?" con Sí / No (Enter = Sí, Esc = No).
+  Borra personajes, inventario, mesos y posiciones de cámara y recarga.
+- Arreglo: antes, si abrías el juego y no creabas personaje, el autoguardado escribía un Guerrero por defecto y la siguiente vez
+  ya no salía la pantalla de crear personaje (por eso había que usar incógnito). Ahora no se guarda nada hasta crear el primer personaje.
+- Borrar a mano con la consola ya no sirve por sí solo: el juego vuelve a guardar al recargar. Usa la tecla |.
+
+== ETAPA 13: clase ARCHER ==
+- Nueva clase Archer (se elige al crear personaje): DEX principal, STR secundario (valores base provisionales); empieza con Longcoat, botas y el arco Beginner.
+  Apariencia por defecto: pelo 37783 y cara 21195.
+- 13 equipos nuevos del WZ: Cap 1002057/1002112/1002117, Coat 1040003/1040007/1040008, Shoes 1072015/1072016/1072025, Glove 1082012/1082015,
+  arcos 1452001 y 1452003. Total: 56 equipos. FALTAN (esperan sus .img compartidos): pantalones 1061173/1061176/1061180 (necesitan 1061057, 1061059, 1061025, 1061009)
+  y el arco 1452077 (necesita 1452016).
+- Ataque básico: dispara 1 flecha que pega 1 vez, misma cadencia que el Thief (0.54 s). Animación shoot1 del arco; flecha = sprite 02060000 (0206.img).
+  Config en sim.js: DEFAULT_CFG.classes.archer. Alcance 280 px; flechas infinitas.
+- Skill Arrow Blow (13001020 de 1300.img; NOMBRE PROVISIONAL, el WZ de skills no trae el texto): daño 80+2x %, MP 17+floor(x/4), 3 golpes por enemigo,
+  hasta 5 enemigos, 300 px al frente, nivel máx. 20. Carga de pie (efecto frames 0-4) y dispara con shoot1 (la acción original "WBbreezeArrow" no existe en el arco).
+  Auto farm la usa sola; manual: tecla X.
+- Arreglo en tools/build_layers.py: las caras con id 21xxx (como 21195) no se detectaban como cara y salían sin ojos.
+- Los efectos de las skills de área ahora se cargan por id (A.skill[id]); el efecto de golpe dura lo que dura su animación.
+- Pruebas: node test_archer.js (fuera del zip)
