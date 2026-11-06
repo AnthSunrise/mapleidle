@@ -493,9 +493,12 @@
   // ---- zonas de farmeo: modo dibujo (arrastrar un cuadro sobre el mapa para el personaje elegido) ----
   var zdraw = null, showZones = true, ZCOL = ['#ffe45c', '#5cf0ff', '#ff7ad9', '#8dff6a', '#ffa14d', '#b08cff'];
   function toWorld(e) { var r = cv.getBoundingClientRect(), sx = (e.clientX - r.left) * (cv.width / r.width), sy = (e.clientY - r.top) * (cv.height / r.height); return { x: (sx - cv.width / 2) / zoom + cam.x, y: (sy - cv.height / 2) / zoom + cam.y }; }
-  window.MAPLE_GAME.startZone = function (i) { S.selectChar(world, i); zdraw = { ci: i, a: null, b: null, msg: '' }; cv.style.cursor = 'crosshair'; };
+  // mientras se dibuja la zona se oculta toda la interfaz (clase zone-draw, ver mui.js) y queda un botón para cancelar (en móvil no hay Esc)
+  var zcBtn = document.createElement('button'); zcBtn.textContent = 'Cancelar zona'; zcBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2147482600;display:none;padding:12px 16px;font:bold 15px Arial;color:#fff;background:#7a2430;border:2px solid #cfd8ee;border-radius:5px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.6)'; document.body.appendChild(zcBtn);
+  zcBtn.addEventListener('click', function (e) { e.stopPropagation(); window.MAPLE_GAME.cancelZone(); });
+  window.MAPLE_GAME.startZone = function (i) { S.selectChar(world, i); zdraw = { ci: i, a: null, b: null, msg: '' }; cv.style.cursor = 'crosshair'; document.body.classList.add('zone-draw'); zcBtn.style.display = 'block'; };
   window.MAPLE_GAME.clearZone = function (i) { var c = world.chars[i]; S.setZone(c, c.mapId, null); save(); };
-  window.MAPLE_GAME.cancelZone = function () { zdraw = null; cv.style.cursor = 'grab'; };
+  window.MAPLE_GAME.cancelZone = function () { zdraw = null; cv.style.cursor = 'grab'; document.body.classList.remove('zone-draw'); zcBtn.style.display = 'none'; };
   window.MAPLE_GAME.zoneDrawing = function () { return !!zdraw; };
   window.MAPLE_GAME.showZones = function (v) { if (v !== undefined) showZones = !!v; return showZones; };
   function focusCam(i) { var c = world.chars[i]; if (c) { cam.x = c.player.x; cam.y = c.player.y - 80; } }
@@ -517,7 +520,7 @@
     ctx.restore();
   }
   function drawZoneBanner() {
-    if (!zdraw) return; var c = world.chars[zdraw.ci], t = 'Zona de ' + c.name + ': arrastra un cuadro sobre el mapa (Esc cancela)' + (zdraw.msg ? '  —  ' + zdraw.msg : '');
+    if (!zdraw) return; var c = world.chars[zdraw.ci], t = cv.width < 700 ? (zdraw.msg || 'Zona de ' + c.name + ': arrastra un cuadro') : 'Zona de ' + c.name + ': arrastra un cuadro sobre el mapa (Esc o botón cancelan)' + (zdraw.msg ? '  —  ' + zdraw.msg : '');
     ctx.save(); ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; var tw = ctx.measureText(t).width + 30; ctx.fillStyle = 'rgba(10,14,30,.85)'; ctx.fillRect(cv.width / 2 - tw / 2, 70, tw, 30);
     ctx.fillStyle = '#ffe45c'; ctx.fillText(t, cv.width / 2, 91); ctx.restore();
   }
@@ -642,7 +645,8 @@
     }
     if (!debug) { lines = speed > 1 ? ['Velocidad x' + speed] : []; if (!world.ai.auto) lines.push('MANUAL (A para volver a auto)'); }   // el texto de ayuda/debug solo se muestra con D
     lines.forEach(function (s, i) { ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText(s, 10, 20 + i * 18); ctx.fillStyle = '#fff'; ctx.fillText(s, 10, 20 + i * 18); });
-    drawHUD(); drawZoneBanner();
+    if (!zdraw) drawHUD();
+    drawZoneBanner();
   }
 
   function applyManual() {

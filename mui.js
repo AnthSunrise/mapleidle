@@ -40,14 +40,29 @@
   var ptype = 'mouse', tipTimer = 0;
   document.addEventListener('pointerdown', function (e) { ptype = e.pointerType || 'mouse'; if (ptype !== 'mouse') hideTip(); }, true);
   document.addEventListener('pointermove', function (e) { ptype = e.pointerType || 'mouse'; }, true);
-  function showTip(e, html) {
+  function showTip(e, html, ms) {
     tipEl.innerHTML = html; tipEl.style.display = 'block';
     var touch = ptype !== 'mouse', x = Math.max(4, Math.min(innerWidth - tipEl.offsetWidth - 6, e.clientX + (touch ? -tipEl.offsetWidth / 2 : 14)));
     var y = touch ? Math.max(4, e.clientY - tipEl.offsetHeight - 30) : Math.min(innerHeight - tipEl.offsetHeight - 6, e.clientY + 14);
     tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
-    clearTimeout(tipTimer); if (touch) tipTimer = setTimeout(hideTip, 2500);
+    clearTimeout(tipTimer); if (touch) tipTimer = setTimeout(hideTip, ms || 2500);
   }
   function hideTip() { clearTimeout(tipTimer); tipEl.style.display = 'none'; }
+  // inventario con el dedo: 1 toque = tooltip, 2 toques seguidos sobre el mismo objeto = equipar/asignar, mantener pulsado = tirar. Con ratón: clic = acción, clic derecho = tirar.
+  var armed = { k: '', t: 0 };
+  function itemTouch(c, key, id, act, drop) {
+    var lpT = 0, lp = false;
+    function clr() { clearTimeout(lpT); }
+    c.addEventListener('pointerdown', function (e) { lp = false; clr(); if (e.pointerType === 'mouse') return; lpT = setTimeout(function () { lp = true; armed.k = ''; hideTip(); drop(); }, 650); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) { c.addEventListener(n, clr); });
+    c.addEventListener('click', function (e) {
+      if (ptype === 'mouse') { act(); return; }
+      if (lp) { lp = false; return; }
+      if (armed.k === key && performance.now() - armed.t < 3500) { armed.k = ''; hideTip(); act(); }
+      else { armed.k = key; armed.t = performance.now(); showTip(e, tipOf(id), 3500); }
+    });
+    c.addEventListener('contextmenu', function (e) { e.preventDefault(); if (ptype === 'mouse') drop(); });
+  }
   var NAMES = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK', att: 'ATT', matt: 'MATT', def: 'DEF', mdef: 'MDEF', mhp: 'HP', mmp: 'MP', acc: 'ACC', eva: 'AVOID', speed: 'Speed', jump: 'Jump' };
   var SORT = ['att', 'matt', 'str', 'dex', 'int', 'luk', 'def', 'mdef', 'mhp', 'mmp', 'acc', 'eva', 'speed', 'jump'];
   /* Tooltip de ítem al estilo MapleStory: etiquetas pixeladas reales de UIWindow.img/ToolTip (REQ LEV, clases, categorías) + marco azul oscuro.
@@ -149,18 +164,17 @@
       if (tab === 'equip') {
         var id = world.inv.equip[idx]; c = cellEl(full, x, y, id, 1);
         if (id) {
-          c.addEventListener('click', function () { var r = I.equipItem(world.inv, world.equip, world.stats.level, idx, world.chars[world.selected].cls, world.chars[world.selected].branch); toast(r.msg); G.save(); isig = ''; hideTip(); IW.refresh(); EW.refresh(true); });
-          c.addEventListener('contextmenu', function (e) { e.preventDefault(); toast('Descartado: ' + I.ITEMS[id].name); world.inv.equip[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
+          itemTouch(c, 'e' + idx, id, function () { var r = I.equipItem(world.inv, world.equip, world.stats.level, idx, world.chars[world.selected].cls, world.chars[world.selected].branch); toast(r.msg); G.save(); isig = ''; hideTip(); IW.refresh(); EW.refresh(true); },
+            function () { toast('Descartado: ' + I.ITEMS[id].name); world.inv.equip[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
         }
       } else {
         var sl = world.inv.use[idx]; c = cellEl(full, x, y, sl && sl.id, sl ? sl.count : 0);
         if (sl) {
-          c.addEventListener('click', function () {
+          itemTouch(c, 'u' + idx, sl.id, function () {
             var it = I.ITEMS[sl.id], cc = world.chars[world.selected];
             if (it.heal) { var k2 = it.heal.hp ? 'hp' : 'mp'; cc.potions[k2].id = it.id; toast(it.name + ' asignada a ' + cc.name + ' (' + cc.potions[k2].pct + '% de ' + k2.toUpperCase() + ')'); G.save(); isig = ''; IW.refresh(); }
             else toast(it.name);
-          });
-          c.addEventListener('contextmenu', function (e) { e.preventDefault(); toast('Descartado: ' + I.ITEMS[sl.id].name + ' x' + sl.count); world.inv.use[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
+          }, function () { toast('Descartado: ' + I.ITEMS[sl.id].name + ' x' + sl.count); world.inv.use[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
         }
       }
     })(i);
@@ -394,6 +408,7 @@
     '#mc-menu button:hover,#mc-menu button:active{background:#12315a;color:#fff}#mc-menu img{width:26px;height:26px;image-rendering:pixelated;pointer-events:none;flex:none}' +
     '#mc-menu button.on{background:#0d4a7a;color:#fff}#mc-menu button i{margin-left:auto;font:normal 11px Tahoma,Arial;color:#6f7f9f}#mc-menu button hr{display:none}' +
     '.wm-win,.mi-win{box-sizing:border-box}' +
+    'body.zone-draw #mc-hb,body.zone-draw #mc-close,body.zone-draw #mc-menu,body.zone-draw #mc-set,body.zone-draw .mw,body.zone-draw .wm-win,body.zone-draw .mi-win,body.zone-draw .mc-list,body.zone-draw #mw-tip{display:none !important}' +
     '#mc-close{position:fixed;top:10px;right:68px;z-index:2147482500;display:none;width:46px;height:46px;border:2px solid #cfd8ee;border-radius:5px;background:#7a2430;color:#fff;font:bold 22px Arial;cursor:pointer;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.6)}' +
     '@media (max-width:700px){#mc-close.on{display:block}#mc-close{width:52px;height:52px;right:72px}#mc-hb{width:52px;height:52px}#mc-menu{top:70px;width:min(250px,calc(100vw - 20px))}#mc-menu button{padding:9px 12px;font-size:15px}#mc-menu img{width:32px;height:32px}#mc-menu button i{display:none}}' +
     '#mc-set{position:fixed;top:64px;right:10px;z-index:12;display:none;min-width:240px;padding:12px 14px;background:#f4f1e6;border:2px solid #6b7da8;border-radius:6px;font:12px Tahoma,Arial;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.6)}#mc-set.on{display:block}' +

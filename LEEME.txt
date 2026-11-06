@@ -545,3 +545,9 @@ Archivos: mui.js, game.js, LEEME.txt
 ETAPA 52b - Tooltips en pantalla táctil (mui.js)
 - Con el dedo el tooltip aparece ENCIMA del punto tocado (ya no tapa el nivel del skill), se oculta solo a los 2,5 s, al tocar en otro sitio, al cerrar la ventana (✕/Esc) y al pulsar la flecha para subir un skill.
 - Con ratón no cambia nada (sigue al cursor).
+
+ETAPA 52c - Inventario táctil y zona de farmeo sin interfaz (mui.js, game.js)
+- Inventario con el dedo (pestañas Equip y Use): 1 toque = tooltip del objeto (3,5 s, encima del dedo); 2 toques seguidos sobre el mismo objeto = equiparlo (o asignar la poción); mantener pulsado (~0,65 s) = tirarlo. Con ratón sigue igual: clic = equipar, clic derecho = tirar.
+- Al asignar una zona de farmeo se oculta TODA la interfaz (menú, ventanas, lista de personajes, barras HP/MP) y aparece un botón "Cancelar zona" arriba a la derecha (en móvil no hay Esc). Al terminar la zona o cancelar, la interfaz vuelve.
+- Texto de ayuda de la zona más corto en pantallas estrechas.
+Archivos: mui.js, game.js, LEEME.txt
