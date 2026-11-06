@@ -541,3 +541,7 @@ ETAPA 52 - Interfaz móvil
 - Botón ✕ rojo flotante junto al botón del menú (sólo en móvil, y sólo si hay algo abierto): cierra primero menú/ajustes y después, una por una, la ventana o panel más reciente. Es la misma lógica que la tecla Esc.
 - Los paneles Mapa, Pociones y Personajes se salían 12 px por la izquierda (faltaba box-sizing:border-box); ahora quedan dentro de la pantalla.
 Archivos: mui.js, game.js, LEEME.txt
+
+ETAPA 52b - Tooltips en pantalla táctil (mui.js)
+- Con el dedo el tooltip aparece ENCIMA del punto tocado (ya no tapa el nivel del skill), se oculta solo a los 2,5 s, al tocar en otro sitio, al cerrar la ventana (✕/Esc) y al pulsar la flecha para subir un skill.
+- Con ratón no cambia nada (sigue al cursor).

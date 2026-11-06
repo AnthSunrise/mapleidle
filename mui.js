@@ -35,8 +35,19 @@
   tipEl = el('div'); tipEl.id = 'mw-tip'; toastEl = el('div'); toastEl.id = 'mw-toast'; document.body.appendChild(tipEl); document.body.appendChild(toastEl);
   function toast(t, ms) { toastEl.textContent = t; toastEl.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(function () { toastEl.style.display = 'none'; }, ms || 1800); }
   window.MAPLE_GAME.toast = function (t) { toast(t, 4500); };   // avisos largos (ej. inventario lleno al avanzar de job)
-  function showTip(e, html) { tipEl.innerHTML = html; tipEl.style.display = 'block'; var x = Math.min(innerWidth - tipEl.offsetWidth - 6, e.clientX + 14), y = Math.min(innerHeight - tipEl.offsetHeight - 6, e.clientY + 14); tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px'; }
-  function hideTip() { tipEl.style.display = 'none'; }
+  // tooltips: con ratón siguen al cursor; con el dedo se colocan ENCIMA del punto tocado (no tapan lo que tocas), se ocultan solos a los 2,5 s,
+  // al tocar en otro sitio, al cerrar la ventana y al subir un skill / equipar
+  var ptype = 'mouse', tipTimer = 0;
+  document.addEventListener('pointerdown', function (e) { ptype = e.pointerType || 'mouse'; if (ptype !== 'mouse') hideTip(); }, true);
+  document.addEventListener('pointermove', function (e) { ptype = e.pointerType || 'mouse'; }, true);
+  function showTip(e, html) {
+    tipEl.innerHTML = html; tipEl.style.display = 'block';
+    var touch = ptype !== 'mouse', x = Math.max(4, Math.min(innerWidth - tipEl.offsetWidth - 6, e.clientX + (touch ? -tipEl.offsetWidth / 2 : 14)));
+    var y = touch ? Math.max(4, e.clientY - tipEl.offsetHeight - 30) : Math.min(innerHeight - tipEl.offsetHeight - 6, e.clientY + 14);
+    tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+    clearTimeout(tipTimer); if (touch) tipTimer = setTimeout(hideTip, 2500);
+  }
+  function hideTip() { clearTimeout(tipTimer); tipEl.style.display = 'none'; }
   var NAMES = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK', att: 'ATT', matt: 'MATT', def: 'DEF', mdef: 'MDEF', mhp: 'HP', mmp: 'MP', acc: 'ACC', eva: 'AVOID', speed: 'Speed', jump: 'Jump' };
   var SORT = ['att', 'matt', 'str', 'dex', 'int', 'luk', 'def', 'mdef', 'mhp', 'mmp', 'acc', 'eva', 'speed', 'jump'];
   /* Tooltip de ítem al estilo MapleStory: etiquetas pixeladas reales de UIWindow.img/ToolTip (REQ LEV, clases, categorías) + marco azul oscuro.
@@ -77,7 +88,7 @@
     o.style.left = p.x + 'px'; o.style.top = p.y + 'px'; W.fit();
     inn.appendChild(img); o.appendChild(inn); document.body.appendChild(o);
     var drag = el('div', 'mw-drag'), x = el('div', 'mw-x', '×'); inn.appendChild(drag); inn.appendChild(x);
-    W.set = function (v) { W.open = v; if (v) W.t = performance.now(); o.style.display = v ? 'block' : 'none'; if (v) { W.fit(); o.style.zIndex = ++z; W.refresh && W.refresh(true); } };
+    W.set = function (v) { W.open = v; if (v) W.t = performance.now(); o.style.display = v ? 'block' : 'none'; if (!v) hideTip(); if (v) { W.fit(); o.style.zIndex = ++z; W.refresh && W.refresh(true); } };
     addEventListener('resize', W.fit);
     W.toggle = function () { W.set(!W.open); };
     o.addEventListener('pointerdown', function () { o.style.zIndex = ++z; });
@@ -254,7 +265,7 @@
       var off = !window.MapleSim.skillAllowed(world.chars[world.selected], sk), lvl = el('div', '', 'Lv. ' + lv + ' / ' + sk.maxLevel + (off ? ' (sin uso)' : '')); lvl.style.cssText = 'position:absolute;left:38px;top:17px;font:10px Tahoma,Arial;color:#444'; row.appendChild(lvl);
       var up = el('img'); up.src = A + 'spup_' + (canUp ? 'normal' : 'disabled') + '.png'; up.draggable = false; up.style.cssText = 'position:absolute;left:127px;top:5px;image-rendering:pixelated;cursor:' + (canUp ? 'pointer' : 'default'); row.appendChild(up);
       if (canUp) { up.addEventListener('mouseenter', function () { up.src = A + 'spup_mouseOver.png'; }); up.addEventListener('mouseleave', function () { up.src = A + 'spup_normal.png'; });
-        up.addEventListener('click', function () { if (SK.learn(world, id)) { G.save(); ksig = ''; KW.refresh(); } }); }
+        up.addEventListener('click', function () { hideTip(); if (SK.learn(world, id)) { G.save(); ksig = ''; KW.refresh(); } }); }
       var lab = el('label'); lab.style.cssText = 'position:absolute;left:98px;top:21px;font:9px Tahoma,Arial;color:#335;cursor:pointer;white-space:nowrap'; var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!st.auto; cb.style.cssText = 'margin:0 2px 0 0;vertical-align:middle;width:9px;height:9px';
       cb.addEventListener('change', function () { st.auto = cb.checked; G.save(); }); lab.appendChild(cb); lab.appendChild(document.createTextNode('Auto')); if (!sk.passiveSkill) row.appendChild(lab);   // las pasivas no llevan Auto
       row.addEventListener('mouseenter', function (e) { showTip(e, skTip(sk, lv)); });
