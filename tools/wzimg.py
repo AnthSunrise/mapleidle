@@ -3,6 +3,18 @@ Exporta cada canvas a PNG y un tree.json con la estructura (origin, vectores, en
 import sys, struct, zlib, json, os
 from PIL import Image
 
+# Los .img de versiones antiguas (v83 GMS, etc.) cifran los strings con AES (clave estándar de MapleStory + IV según la región).
+# Se detecta solo: se prueba sin cifrar (IV cero, los .img del servidor) y luego los IV conocidos. Para forzar uno: WZ_IV=4D23C72B
+AES_KEY = bytes([0x13, 0, 0, 0, 0x08, 0, 0, 0, 0x06, 0, 0, 0, 0xB4, 0, 0, 0, 0x1B, 0, 0, 0, 0x0F, 0, 0, 0, 0x33, 0, 0, 0, 0x52, 0, 0, 0])
+KNOWN_IV = {'sin cifrar': None, 'GMS/v83': bytes([0x4D, 0x23, 0xC7, 0x2B]), 'SEA': bytes([0xB9, 0x7D, 0x63, 0xE9])}
+_KS = [bytes(1 << 16)]   # keystream actual (por defecto ceros = sin cifrar)
+def set_iv(iv):
+    if iv is None: _KS[0] = bytes(1 << 16); return
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    enc = Cipher(algorithms.AES(AES_KEY), modes.ECB()).encryptor(); out = b''; blk = iv * 4
+    while len(out) < (1 << 16): blk = enc.update(blk); out += blk
+    _KS[0] = out
+
 class R:
     def __init__(s, d): s.d = d; s.p = 0
     def u8(s): v = s.d[s.p]; s.p += 1; return v
@@ -20,16 +32,17 @@ class R:
         if ln > 0:
             if ln == 127: ln = s.i32()
             out = []; mask = 0xAAAA
+            ks = _KS[0]
             for i in range(ln):
                 c = struct.unpack_from('<H', s.d, s.p)[0]; s.p += 2
-                out.append(chr(c ^ mask)); mask = (mask + 1) & 0xFFFF
+                out.append(chr(c ^ mask ^ (ks[2 * i] | (ks[2 * i + 1] << 8)))); mask = (mask + 1) & 0xFFFF
             return ''.join(out)
         if ln == 0: return ''
         if ln == -128: ln = s.i32()
         else: ln = -ln
-        out = []; mask = 0xAA
+        out = []; mask = 0xAA; ks = _KS[0]
         for i in range(ln):
-            out.append(chr(s.d[s.p] ^ mask)); s.p += 1; mask = (mask + 1) & 0xFF
+            out.append(chr(s.d[s.p] ^ mask ^ ks[i])); s.p += 1; mask = (mask + 1) & 0xFF
         return ''.join(out)
     def stroff(s, inline, off):
         t = s.u8()
@@ -126,8 +139,15 @@ def extended(r, base, outdir, path, stats):
 
 if __name__ == '__main__':
     d = open(sys.argv[1], 'rb').read(); out = sys.argv[2]; os.makedirs(out, exist_ok=True)
-    r = R(d); stats = {'ok': 0, 'err': 0, 'fmt': set()}
-    assert r.stroff(0, 0) == 'Property'; r.u16()
+    stats = {'ok': 0, 'err': 0, 'fmt': set()}
+    forced = os.environ.get('WZ_IV'); cands = [('forzado', bytes.fromhex(forced))] if forced else list(KNOWN_IV.items())
+    for nm, iv in cands:
+        set_iv(iv); r = R(d)
+        try:
+            if r.stroff(0, 0) == 'Property': print('cifrado:', nm); break
+        except Exception: pass
+    else: sys.exit('No pude descifrar el .img (IV desconocido). Prueba WZ_IV=<8 hex> o avisa.')
+    r.u16()
     tree = prop_list(r, 0, out, [], stats)
     # enlaces (canvas vacíos con 'source'): si apuntan a este mismo .img se copia el PNG real; si apuntan a otro (ej. Basic.img) se avisa
     def find(node, parts):
@@ -150,5 +170,5 @@ if __name__ == '__main__':
     walk(tree)
     if fixed[0]: print('enlaces internos resueltos:', fixed[0])
     if ext: print('enlaces a otros .img (copia el PNG de allí):', len(ext), list(ext)[:5])
-    json.dump(tree, open(os.path.join(out, 'tree.json'), 'w'), ensure_ascii=False)
+    json.dump(tree, open(os.path.join(out, 'tree.json'), 'w', encoding='utf-8'), ensure_ascii=False)
     print(sys.argv[1], 'png', stats['ok'], 'errores', stats['err'], 'formatos sin soporte', sorted(stats['fmt']), 'top:', list(tree.keys())[:40])

@@ -208,3 +208,329 @@ ARREGLOS (después de la etapa 11 parte 1)
 - Arreglo en tools/build_layers.py: las caras con id 21xxx (como 21195) no se detectaban como cara y salían sin ojos.
 - Los efectos de las skills de área ahora se cargan por id (A.skill[id]); el efecto de golpe dura lo que dura su animación.
 - Pruebas: node test_archer.js (fuera del zip)
+
+== ETAPA 13b: equipos del Archer + puntería "fail proof" ==
+- Nuevos: arco Maple Bow 1452077 (Lv30, ATT 48) y Longcoat Explorer's Lumati 1051204: aquí es nivel 15 con DEX +2 (override en items.js; en el WZ era Lv30 / DEX +4).
+  Los pantalones del Archer (1061173/1061176/1061180) quedan fuera del catálogo (decisión del autor). 58 equipos en total.
+- PROBLEMA: los personajes lanzaban skills/ataques con el enemigo justo en el borde exacto del alcance, y si se movía un poco o recibía knockback de otro
+  personaje, la skill fallaba (y gastaba MP). SOLUCIÓN (sim.js, cfg.aim = { ratio: 0.2, minMargin: 40, pad: 40 }):
+  1) La IA solo lanza una skill si el enemigo está dentro del alcance MENOS un margen (20% del largo, mín. 40 px). Si tiene una skill disponible
+     (aprendida, en Auto y con MP) y el enemigo está más lejos, se ACERCA en vez de atacar al borde.
+  2) Al soltar el golpe se admite una tolerancia de 40 px extra (enemigos que caminan o reciben knockback). Los ataques normales también (+20 px melee, +40 px a distancia).
+  3) Si aun así la skill no encuentra a nadie (p. ej. otro personaje mató al enemigo mientras cargaba) se DEVUELVE el MP.
+  Se puede ajustar con DEFAULT_CFG.aim; para ver el comportamiento antiguo: aim = { ratio: 0, minMargin: -15, pad: 15 }.
+- Prueba: node test_aim.js (en /home/claude, fuera del zip). En 300 s los fallos por alcance pasan de ~10 a 0 en solitario.
+
+== ETAPA 14: clase MAGE ==
+- Nueva clase Mage (se elige al crear personaje): INT principal, LUK secundario; el daño sale del ATT MÁGICO (matt) del arma (items.js: CLASSES.mage.magic).
+  Empieza con Longcoat, botas y el bastón Beginner. Apariencia por defecto: pelo 37775 y cara 21101. Valores base provisionales.
+- 13 equipos nuevos del WZ (71 en total): Cap 1002017/1002102/1002072, Robe (Longcoat) 1050009/1050023/1050027, Shoes 1072006/1072024/1072019,
+  Glove 1082019/1082021, Staff 1382003/1382004. FALTA el Staff 1382074 (necesita 01382009.img).
+- Ataque normal: golpe de bastón (swingO1/swingO2 alternando), 1 enemigo, misma cadencia que el Warrior (0.54 s) y más alcance (115 px; config en sim.js: classes.mage).
+- Skill Magic Claw (12001003 de 1200.img): daño 70+3x %, MP 10+2*floor(x/4), 2 golpes por enemigo, hasta 4 enemigos, 250 px al frente, nivel máx. 20.
+  Animación swingO2 del bastón; efecto de tajo en media luna y zarpazos al golpear. Auto farm la usa sola; manual: tecla X.
+- La puntería "fail proof" (etapa 13b) aplica también al Mage.
+- Pruebas: node test_mage.js (en /home/claude, fuera del zip)
+
+== ETAPA 14b ==
+- Agregado el Staff 1382074 (Maple Staff, Lv30, MATT 48, +100 HP máx.) con 01382009.img. Ahora hay 72 equipos.
+
+=== ETAPA 15: Pirate ===
+- Clase Pirate (nudillos, cuerpo a cuerpo): STR principal / DEX secundario (valores provisionales; mult 6.4 porque el ATT de los nudillos es menor que el de las espadas).
+- Look: pelo 31862, cara 24432. Ataque normal con animaciones swingP1/swingP2 (puñetazos), misma cadencia que el Warrior, 1 enemigo.
+- Equipo (13 ítems nuevos, 85 en total): gorros 1002610/13/16, Longcoats 1052095/98/101, botas 1072285/88/91, guantes 1082180/83, nudillos 1482001/1482002 (1482000 = Beginner).
+- Skill Somersault Kick (15001002): daño 225+4x %, MP 8+2*(x/5), 6 enemigos, alcance corto (5..110 px). Tecla X con un Pirate seleccionado.
+- PENDIENTE: nudillos 1482041 (falta 01482020.img); opcional 00031860 (sombra del pelo).
+- Animación "somersault" (etapa 15b): el cuerpo la define como secuencia compuesta (poses swingPF, swingT2, swingP2 girado 180°, stabT2 girado 270° + desplazamiento). build_layers.py guarda esa lista (campo comp) y layers.js la compone girando cada pose.
+
+=== ETAPA 16: feedback (tienda y drops) ===
+- Tienda: clic derecho en un objeto de tu inventario lo vende al instante (equipo = 1 pieza; USE = toda la pila). Enlace "Vender todo" (confirma) vende todo lo de la pestaña actual; en USE no vende pociones.
+- Tienda: las listas se mueven de fila en fila (40 px) con rueda, barra y soltar: ya no se descuadran con el fondo.
+- Drops por kill (items.js, rollDrop): Red Potion 25%->7%, Blue Potion 15%->4.5%, Scroll Piece 5%->1%, equipo 6%->1.2%. Ajustables.
+- Pendiente (feedback): zonas de farmeo por personaje (etapa 17) y sprites de cuerda/escalera (etapa 18).
+
+=== ETAPA 17: zonas de farmeo ===
+- Ventana de personajes (C): botón "Zona" por personaje. Se cierra la ventana y arrastras un cuadro sobre el mapa (Esc cancela). "✕" quita la zona. Casilla para mostrar/ocultar las zonas en el mapa.
+- Cada personaje tiene una zona por mapa (se guarda con la partida). Con zona, solo busca enemigos dentro del cuadro (pisos incluidos: usa cuerdas/escaleras si el cuadro cruza varios). Sin enemigos dentro vuelve al centro de la zona y espera; si un enemigo fuera del cuadro lo toca (<70 px, misma plataforma) se defiende.
+- Zonas muy pequeñas (<40x20) se rechazan; una zona sin plataformas no hace nada. Pruebas: test_zone.js.
+
+=== ETAPA 18: sprites de cuerda y escalera ===
+- Al trepar, el personaje usa las animaciones 'rope' (cuerda) y 'ladder' (escalera) del cuerpo y de todo el equipo (de espaldas, 2 fotogramas x 250 ms; solo se animan mientras sube o baja; parado se queda en el último fotograma).
+- Corregido en layers.js: el cuerpo se anclaba solo si su capa se llamaba 'body'; en estas poses es 'backBody' y la cabeza salía mal colocada. Ahora se ancla por el nombre de la capa (p), no por z.
+- build_layers.py empaqueta 'ladder' y 'rope'. Los nudillos 1482002/1482001 no traen 'rope': el arma no se dibuja en la cuerda (como en el juego original).
+
+=== ETAPA 19: saltos, texto debug y cámara de zonas ===
+- Saltos de la IA (sim.js): el punto de aterrizaje ahora queda >= 16 px dentro de la plataforma destino (antes quedaba pegado al borde/pared y el personaje saltaba en vertical, cayendo fuera una y otra vez) y el personaje despega ya avanzando hacia ese punto (con impulso). test_jumps.js recorre TODOS los saltos de Henesys y Mushroom Forest: antes fallaban 5 de 25, ahora 0.
+- El texto de ayuda/debug de arriba a la izquierda se oculta; con D vuelve (y los controles de offset). Solo se muestra "Velocidad xN" al acelerar (F) y un aviso si estás en modo MANUAL.
+- Zonas: al pulsar "Zona" ya no se recentra el mapa; mientras arrastras, acercar el cursor a un borde de la pantalla mueve la cámara para cubrir áreas grandes.
+
+=== ETAPA 20: Pirate (puñetazo y Maple Knuckle) ===
+- Ataque normal del Pirate: animación stabO1 (puñetazo) en lugar de swingP; misma cadencia que el Warrior.
+- Agregado el nudillo 1482041 (Maple Knuckle, Lv30, ATT 38, ACC +10) con 01482020.img. Total: 86 equipos.
+
+=== ETAPA 21: mapa Golem Temple ===
+- Nuevo mapa jugable "Golem Temple" (100040300, región Henesys, Lv recomendado 20): mapdata_golem.js (generado con tools/map_from_img.py a partir del .img), render assets/map/golem_temple.png (se le añadió un cielo degradado detrás porque el render venía con fondo transparente), calibrado con off (225, 530).
+- Enemigo Golem (5150003): 18 en el mapa; Lv 19, 350 HP, EXP 39, daño de contacto 84 (del .img); mesos 30-70 provisionales. Sprites: assets/mob/golem/ (stand 8, move 4, hit 1; no se usan aún skill1/die1).
+- tools/map_from_img.py: convierte un mapa .img (extraído con wzimg.py) en mapdata_<id>.js. Para otro mapa: registrar en maps.js (off se calibra comparando footholds con el render), añadir el mob en sim.js (mobTypes/mobRewards) y game.js (lista de sprites).
+- Nuevas pruebas: test_golem.js; test_jumps.js incluye el nuevo mapa.
+
+=== ETAPA 22: Kerning Subway + knob de dificultad ===
+- Mapa "Kerning Subway" (103020300, región Kerning Subway, Lv recomendado 40): mapdata_kerning.js, render assets/map/kerning_subway.png (con su marco de ladrillo), calibrado off (0, 489). 44 enemigos "wraith" (3230101: Lv44, 4600 HP, EXP 131, daño de contacto 214; el nombre del mob es PROVISIONAL, no tengo su String.img; mesos 60-140 provisionales). Sprites en assets/mob/wraith/ (stand/move/hit/die).
+- IA: un salto ya no se considera válido si otra plataforma queda entre el vértice del salto y el destino (el personaje caería encima de ella). Antes intentaba saltos imposibles en el foso de los rieles.
+- Dificultad: nuevo parámetro de configuración mobHpMul (sim.js, createWorld(data, {mobHpMul: N})); multiplica la vida de TODOS los enemigos. Por defecto 1 (datos del WZ). Ver la tabla de tiempos por kill en la conversación antes de cambiarlo.
+- Pruebas nuevas: test_kerning.js; test_jumps.js incluye Kerning Subway.
+
+=== ETAPA 23: Kerning Swamp + balance ===
+- Mapa "Kerning Swamp" (103030200, región Kerning Subway, Lv recomendado ~45): mapdata_swamp.js, render assets/map/swamp.png (off 1620,628). Enemigo 5130103 (nombre provisional 'swamp', Lv47): 15 en el mapa; WZ hp 5280 / exp 143 / daño 242 -> en el juego hp 3400, exp 290, daño 170. Los 14 spawns del enemigo 3110100 se omiten hasta tener su .img.
+- Balance: Blue Mushroom hp 400 / exp 42; Golem hp 1225 / exp 136; Wraith hp 3000 / exp 260 (daño x0.7). Pirate: velocidad de ataque y skills x1.4 (cfg.classes.pirate.atkSpeed) y multiplicador de arma 7.1.
+- Guardado: ahora también se guarda en pagehide y al ocultar la pestaña (visibilitychange).
+- Pruebas: test_swamp.js; todos los tests incluyen mapdata_swamp.js.
+
+=== ETAPA 23b ===
+- Swamp: los 14 spawns de 3110100 ahora son 5130103 (29 enemigos en total).
+- Bug: se dibujaban los personajes (sprite, nombre, efectos de skill) de otros mapas y se podían seleccionar con clic. Ahora solo se dibujan los del mapa que se está viendo.
+
+=== ETAPA 24: SP por job + candado de Lv10 ===
+(Partiendo de tu versión con octopus/Construction Site y HP del WZ.)
+- Antes del Lv10 no hay SP: se farmea con ataques normales. Un personaje de Lv<10 no puede salir de Henesys Hunting Ground (sim.travel lo rechaza; en "Mover a..." aparece "necesita Lv 10").
+- SP separados por job (skills.js: JOB_START [_,10,30,70,100], spTotal, spAvailable(world, job), cada skill puede llevar `job`, por defecto 1): 1er job = 3 SP por nivel de Lv10 a Lv29 (60 SP exactos); desde Lv30 los SP son del 2do job (3 por nivel hasta Lv69), etc. Los SP de un job no sirven para skills de otro.
+- Ventana de Skills: muestra los SP del 1er job y, desde Lv30, los del 2do job acumulados.
+- Pruebas: test_sp.js; test_buffs.js y test_skill.js ajustadas (nivel 10).
+
+=== ETAPA 25: avance de job (character cards) ===
+- jobs.js (nuevo): ramas por clase (Warrior: Fighter/Page/Spearman; Mage: Wizard F/P, Wizard I/L, Cleric; Archer: Hunter/Crossbowman; Thief: Assassin/Bandit; Pirate: Brawler/Gunslinger). Cada rama tiene `weapon` (id de arma provisional de Lv30, null = aún no se entrega nada).
+- sim.js: c.branch (se guarda), advanceJob(world, char, id), skillAllowed(char, skill). Las skills pueden llevar `branches`: Lucky Seven solo ['assassin'], Somersault Kick solo ['brawler']; Bandit y Gunslinger las dejan de usar (la auto-farm las ignora y la ventana de Skills las marca "(sin uso)").
+- A Lv30 aparece "★ Avanzar de job" en la lista lateral y en el manager (C): abre la ventana de cartas, pide confirmación y no se puede deshacer. La rama se muestra junto al nivel.
+- Cartas: si existe assets/ui/cards/<idRama>.png (fighter, page, spearman, wizardFP, wizardIL, cleric, hunter, crossbowman, assassin, bandit, brawler, gunslinger) se usa como fondo de la carta (200x300 px); si no, se dibuja una carta provisional.
+- Pruebas: test_jobs.js.
+
+=== ETAPA 26: números de daño de MapleStory ===
+- assets/dmg/<Set>/<d>.png (de Effect/BasicEff.img) + dmgdata.js (tamaño y origen de cada PNG). El primer dígito usa el set "1" (más grande) y el resto el set "0": NoRed = daño causado, NoViolet = daño recibido (algo más pequeño), NoCri = críticos (listo para cuando haya críticos: texto con num:'cri'), NoBlue disponible para curas.
+- sim.js: los textos de daño llevan `num` ('red' | 'violet'); game.js los dibuja con drawNum (aparición con un pequeño "pop" y desvanecido). Si faltan los PNG vuelve al texto de antes.
+- Los textos de EXP, mesos, items y "LEVEL UP" no cambian.
+
+=== ETAPA 27: skills de 1er job (60 SP exactos por clase) ===
+- Warrior: Slash Blast 20 + Iron Body 20 (buff propio: DEF, 100+10x s) + Warrior Mastery 20 (velocidad y HP máx.).
+- Mage: Magic Claw 20 + Magic Armor 10 (buff DEF) + Magic Guard 15 (buff: parte del daño se paga con MP) + Teleport 5 (la IA salta hacia enemigos lejanos de su plataforma) + MP Boost 10 (MP máx.).
+- Archer: Arrow Blow 20 (ahora 3001004 de 300.img: daño 195+5x, 4 enemigos, 420 px; el anterior 13001020 queda para el 2do job Hunter) + Archer Mastery 20 (alcance, evasión, velocidad) + Critical Shot 20 (probabilidad de crítico 2x%).
+- Thief: Haste 20 + Lucky Seven 20 + Nimble Body 20 (evasión).
+- Pirate: Somersault Kick 20 + Shadow Heart 10 (crítico 2x% y daño crítico +x%) + Bullet Time 10 (velocidad 2x%) + Dash 10 (buff de velocidad 5x%) + HP Boost 10 (HP máx. 2x%).
+- Escalado: cuando el nivel máximo del juego difiere del WZ (Magic Armor 10 vs 15, Archer Mastery 20 vs 15, Warrior Mastery 20 vs 15, Nimble Body 20 vs 10) la skill se evalúa en el nivel equivalente, así el nivel máximo da siempre el valor vanilla.
+- Interpretaciones propias (los .img no traen descripción): DEF de Iron Body/Magic Armor = pdd x0.25 (para encajar con la escala de DEF del juego); evasión -> esquivar con probabilidad eva/(eva+600) (aparece "MISS"); "lv2mhp" del Warrior Mastery = % de HP máx.; precisión y salto no se usan; stance no se usa.
+- Críticos: nueva mecánica (sim.rollCrit): daño x1.5 (cfg.critMul) + daño crítico extra; el número sale con los dígitos NoCri.
+- Buffs propios (no de party): sim.applyBuff respeta `party:false`. Los buffs se muestran en la lista de personajes con su icono.
+- Arrow Blow nuevo: borra de assets/skill/arrow_blow/ los archivos viejos effect_9.png, hit_4.png y hit_5.png (el zip trae los nuevos effect_0..8 y hit_0..3).
+- Pruebas: test_firstjob.js; test_archer.js actualizado.
+
+=== ETAPA 27b: efectos y Teleport ===
+- Arrow Blow: ahora sale la flecha verde (nodo `ball` del WZ, assets/skill/arrow_blow/ball_0..2.png); el daño se aplica cuando llega al enemigo y el efecto de golpe sale en el impacto (skills.js `ball`, sim.js doSkillHit/stepProj).
+- Magic Guard (12 frames) y Dash (6 frames) con sus efectos del WZ al lanzarse (assets/skill/magic_guard/, assets/skill/dash/; Dash trae también back_0..3 del nodo effect0, sin usar). Iron Body y Magic Armor no tienen nodo de efecto en los .img: falta el sprite.
+- Críticos: efecto estrella de NoCri1/effect (assets/dmg/NoCri1/effect.png + dmgdata.js).
+- Teleport rehecho como medio de transporte: la IA lo usa para llegar a otras plataformas (hasta dist = 110+12x px a los lados y vert = 250+5x px arriba o abajo) y para cruzar la plataforma; necesita MP y enfriamiento de 2.5 s. Efecto provisional (destello azul) hasta tener sprite. Aristas 'tele' del grafo en sim.js (teleEdges / doTeleport).
+- Ventana Stat (detalle): línea extra con Crítico, Daño crítico, Esquiva y Evasión; la velocidad usa las pasivas y buffs.
+
+=== ETAPA 27c ===
+- Iron Body y Magic Armor pasan a ser PASIVAS (como en las versiones recientes): ya no se lanzan ni tienen efecto; suman DEF permanente (pdd x0.25). Se quitan sus buffs de buffs.js.
+
+=== ETAPA 28: curva de HP/MP por clase ===
+- HP/MP por nivel tomados de Swordie (GameConstants.INC_HP_MP): Lv1 = 50 HP / 5 MP; hasta el Lv10 (Beginner) +16 HP / +12 MP por nivel; desde el Lv11 los de la clase (HP = máximo de la columna como en el servidor; MP = columna oficial de MP por nivel, no la que usa Swordie): Warrior +68/+6, Mage +14/+24, Archer y Thief +24/+16, Pirate +26/+22. Lv30: Warrior 1554/233, Mage 474/593, Archer y Thief 674/433, Pirate 714/553. Tabla en sim.js (INC).
+- Pasivas con HP/MP por nivel del personaje: nuevas claves hpLv/mpLv (lv2mhp/lv2mmp) en sim.mods. Warrior Mastery usa lv2mhp (5+x por nivel; en Lv30 +600 HP); MP Boost usa mmpR (el .img no trae lv2mmp). 
+- Las pasivas ya no muestran el botón Auto.
+- Pruebas: test_hpmp.js (+ ajustes en test_chars/combat/skill/firstjob).
+- OJO: con estos HP cambia el balance (los mobs pegan relativamente menos); habrá que recalibrar daño de mobs, EXP y HP de mobs.
+
+=== ETAPA 29: party leader + compras de 999 ===
+- Tienda: se pueden comprar hasta 999 unidades por compra (el inventario sigue apilando de 100 en 100 por casilla).
+- Party leader / assist: clic derecho sobre un personaje de la lista lateral lo hace LÍDER (♛ y borde naranja); clic derecho de nuevo lo quita. Los demás personajes del mismo mapa siguen al líder y atacan al mismo enemigo que él tiene como objetivo (ignoran su zona de farmeo mientras haya líder en su mapa). Si el líder no tiene objetivo, lo acompañan. Se guarda en la partida. sim.setLeader / w.leader; lógica en stepAI.
+- Pruebas: test_leader.js.
+
+ETAPA 29b - Mago seguidor
+- Teleport: enfriamiento 2.5 s -> 0.5 s.
+- Con party leader, el seguidor que va rezagado (otra plataforma o a >260 px) deja de pelear con enemigos del camino y prioriza alcanzar al líder; si tiene Teleport (auto) lo usa de forma continua para mantener el paso.
+
+ETAPA 30 - Recalibración con las capturas de tu servidor
+- Stats por nivel: todos empiezan en 4; hasta Lv10 +6 al stat principal por nivel; desde Lv11 reparto por clase (incluye los 5 AP por nivel puestos en el principal). Lv30 = tus capturas: Warrior/Pirate STR 238 DEX 24; Archer DEX 178 STR 84; Thief LUK 158; Mage INT 158.
+- Daño del arma base igual a tu servidor (min~max): Warrior 73~363, Mage 57~229, Archer 48~321, Thief 50~333, Pirate 76~382 (Lv30). Cada clase tiene 'cal' (ajuste de ATT) y 'minR' (mínimo/máximo) en items.js.
+- Weapon DEF = 1.104*STR + 3.95*nivel - 13 (+ equipo; el Mage x0.72). Daño recibido = PAD del mob x(0.97~1.03) - 0.14*DEF.
+- MP Boost: ahora da MP por nivel del personaje (nivel 10 = +121/nivel, Lv30: +3639; calibrado con tus puntos 0/10/20).
+- expMul 1.4 (sim.js, cfg): ~2 h hasta Lv30 con 5 personajes a velocidad normal (simulado: 104-122 min).
+- Mobs sin cambios (WZ; Golem y Octopus los tuyos). Con la DEF real, Henesys/Mushroom/Golem casi no hacen daño (como en el juego original); la dificultad aparece en Kerning (Lv30+).
+
+ETAPA 30b - Pirate: STR -> DEX al elegir Gunslinger
+- calcStats(level, equip, cls, branch): con branch 'gunslinger' los puntos de STR del Pirate pasan a DEX (stat principal DEX, secundario STR, mult de pistola 3.6 provisional). Brawler y sin rama siguen con STR.
+- Warrior (STR/DEX), Mage (INT/LUK), Thief (LUK/DEX) y Archer (DEX/STR) ya usaban esos stats.
+- La Weapon DEF sigue calculándose con el STR original (no baja al cambiar a Gunslinger); es una suposición mía.
+- El daño del Gunslinger depende del arma provisional (la pistola); se calibra cuando exista.
+
+ETAPA 31 - 2do job: sistema + Fighter (110.img)
+- SP del 2do job: 3 por nivel de Lv30 a Lv69 = 120 SP, fondo separado del 1er job. La ventana de skills muestra, tras las de 1er job, las de la rama elegida bajo "— 2do job · SP n —".
+- Nuevo en skills.js: job: 2, branches, req (requisitos del WZ: Final Attack pide Weapon Mastery 3, Weapon Booster pide Weapon Mastery 5, Power Reflection pide Rage 3) y SK.canLearn.
+- Fighter (120 SP): Weapon Mastery 20 (mínimo = 10+2x % del máximo), Final Attack 20 (tras un ataque normal, 2x % de golpe extra de 100+5*d(x/2) %), Physical Training 5 (WZ 10: STR/DEX +3x), Weapon Booster 20 (+25% velocidad de ataque; valor mío), Rage 20 (ATT +10+x al party; 55+5x s), Power Reflection 20 (refleja 10+x % del daño recibido, máx. 100+20x), Ground Smash 10 (200+18x %, 4 enemigos, 200 px) y Warrior Leap 5 (WZ 10).
+- Warrior Leap: no hay datos en el WZ; es un impulso horizontal como el Teleport del Mage (140+10*v px, hasta 90 px arriba/abajo, enfriamiento 1 s, MP 65-5v). Efecto provisional de polvo.
+- calcStats(level, equip, cls, branch, bonus): bonus = { att, str, dex, mastery } de pasivas/buffs.
+- Nuevos mods: att, pStr, pDex, mastery, atkSpeed, reflect, reflectMax. Nuevos buffs en buffs.js: weaponBooster, rage (party), powerReflection.
+- Archivos: skills.js, sim.js, items.js, buffs.js, game.js, mui.js, LEEME.txt + assets/skill/ft_* (iconos y efectos).
+
+ETAPA 31b - Ventana de skills con pestañas
+- Pestañas como en MapleStory: • (Beginner), I (1er job), II (2do job), III, IV. Cada una lista solo los skills de su job; el contador SKILL POINT muestra el SP de la pestaña abierta. Al abrir la ventana se muestra el job más alto del personaje (II si ya tiene rama). Beginner no tiene skills todavía; III y IV dicen "Aún no disponible".
+
+ETAPA 32 - 2do job: Page (120.img)
+- Page (120 SP): Weapon Mastery 20, Final Attack 20, Physical Training 5, Weapon Booster 20, Ground Smash 10 y Warrior Leap 5 son copias de las del Fighter (mismos valores y arte en los .img; usan los assets ft_*); propias: Threaten 20 y Power Guard 20.
+- Threaten (1201006): debilita a hasta 6 enemigos en ±300 x ±200 con prob 40+x %: su daño de contacto baja (10+x)% durante 40+2x s; marca animada sobre los enemigos afectados. Los demás efectos del WZ (DEF, precisión, subTime) no se usan.
+- Power Guard (1201007, pide Threaten 3): refleja 10+2x % del daño recibido, máximo 20+4x por golpe, 60+6x s. Interpretación mía del tope (y), igual que en Power Reflection.
+- sim.js: skills con debuff:true (doDebuffCast / readyDebuff, m.debuff). game.js: marca sobre el mob. Assets nuevos: assets/skill/pg_*.
+
+ETAPA 33 - 2do job: Spearman (130.img)
+- Spearman (120 SP): Weapon Mastery 20, Final Attack 20, Physical Training 5, Weapon Booster 20, Ground Smash 10 (el WZ da 10) y Warrior Leap 5 (mismos valores que Fighter/Page; icono propio en Mastery, Final Attack y Booster; golpe propio en Final Attack), más Iron Will 20 y Hyper Body 20.
+- Iron Will (1301006): buff de party del mapa, DEF = 15*x*0.25 (como Iron Body), 40+10x s. Hyper Body (1301007, pide Iron Will 3): HP y MP máx. +3x % al party, 15x s.
+- Aún sin arma de lanza provisional: usa la espada hasta tener animaciones de lanza.
+- Archivos: skills.js, buffs.js, LEEME.txt + assets/skill/sp_*.
+
+
+ETAPA 34 - Mago Fuego/Veneno (2do job), sin Ignite
+  Skills: Spell Mastery 20, MP Eater 20, High Wisdom 10, Meditate 20, Magic Booster 10, Flame Arrow 20, Poison Breath 10 (110 SP; Ignite 10 SP en la etapa 35).
+  - MP Eater: prob x% de absorber u(x/2)% del MP del mob (MP del mob = dato mp o nivel*10).
+  - Poison Breath: veneno = dot% del daño maximo por segundo (WZ nivel 20 equivalente en nivel 10), no se acumula.
+  - Flame Arrow: un proyectil por enemigo, arte cambia a nivel de personaje 40 y 50.
+  - Meditate: +MATT a la party. items.js: bonus.int / bonus.matt.
+
+ETAPA 34b - Arreglos Assassin (sobre los archivos de Gemini)
+  - Shuriken Burst: efecto con los 7 origins del WZ (antes un frame fantasma en 0,0), 60 ms por frame.
+  - Gust Charm: efecto de 11 frames + viento (ball) perforante que golpea hasta 4 enemigos y los empuja con animacion suave (0.35 s) en vez de teletransportarlos.
+  - Assassin's Mark: la tiene toda la rama Assassin sin aprenderla (40% de marcar al golpear; al golpear a uno marcado salen 2 estrellas a los 2 enemigos mas cercanos). Marca dibujada sobre la cabeza.
+  - sim.js: stepProj conserva los proyectiles creados durante el recorrido; markHit/stepPierce nuevos; m.knock.
+  - game.js: marcas de Threaten/veneno/Mark/stun se dibujan juntas. skills.js: mobFx de Mark y Hawk como arrays [x,y].
+
+ETAPA 35 - Ajustes de combate
+  - Critico base 5 % para todas las clases (cfg.baseCrit; las skills suman encima).
+  - Sin regeneracion natural de MP (solo pociones; la regeneracion de HP sigue). Nota: mpRec de Perseverance queda sin efecto.
+  - Numeros de dano: los golpes de una misma skill se apilan hacia arriba (34 px) en vez de taparse; Final Attack y Soul Arrow siguen en su sitio (se solapan con el golpe de la skill).
+
+ETAPA 36 - Ignite (Mago Fuego/Veneno): con esto la rama suma 120 SP
+  - Pasiva (icono de 2100010). Al impactar Flame Arrow: prob 10+4x % de dejar fuego en el suelo del enemigo golpeado; dura 4+d(x/4) s, tick cada 1,5 s de 60+5x % a hasta 8 enemigos en +-40 x +-20 px. Maximo 12 fuegos a la vez. Tamano del fuego segun nivel (1-3 / 4-7 / 8-10).
+  - Assets: assets/skill/fp_ignite_icon.png y assets/skill/fp_ignite/ (tile_S_F.png, hit_N.png).
+
+ETAPA 37 - Ventana de stats y tooltip de skills
+  - La ventana de stats (S) usa S.cstatsOf(ch): ahora cuenta Physical Training (STR/DEX/LUK), Weapon/Spell Mastery (ATT minimo), buffs y pasivas, igual que el combate (antes era solo visual). Critico mostrado = 5 % base + skills.
+  - Tooltip de skills estilo MapleStory: [Master Level], descripcion, Required Skill (verde si cumplido / naranja si no), [Current Level], [Next Level] y [Required] con icono, nombre y nivel. Opcional: agrega `desc: '...'` a un skill para una descripcion propia.
+  - items.js: bonus.luk (Physical Training del Assassin).
+
+ETAPA 38 - Multiplicadores por enemigo
+  - En sim.js, DEFAULT_CFG.mobRewards, cada mob acepta hpMul (vida) y expMul (EXP), 1 por defecto. Ej.: swamp: { exp: 143, ..., hp: 5280, level: 47, hpMul: 2, expMul: 2 }. Se combinan con los globales mobHpMul y expMul.
+
+ETAPA 39 - Herramientas para mapas v83
+  - tools/wzimg.py: detecta y descifra .img con strings cifrados (AES, IV GMS v83 / SEA); los .img del servidor siguen igual. Requiere el paquete python `cryptography` solo para los cifrados (pip install cryptography). Forzar IV: WZ_IV=4D23C72B.
+  - tools/map_from_img.py: lee/escribe en UTF-8 (error de cp1252 en Windows) y avisa si los argumentos son incorrectos. Uso: wzimg.py mapa.img salida/  ->  map_from_img.py salida/tree.json mapdata_nombre.js ID_MAPA
+
+ETAPA 40 - Importadores (tools/)
+  - tools/import_skill.py <archivo.img> <id_skill> <nombre_corto>: extrae icono + effect/hit/ball/mob/tile con los nombres del juego a assets/skill/ y escribe un borrador de skills.js (origins, delays, formulas convertidas).
+  - tools/import_mob.py <archivo.img> <nombre_corto>: extrae stand/move/hit/die a assets/mob/<nombre>/ y escribe las lineas de mobTypes/mobRewards (sim.js).
+  - Ambos descifran .img de v83 solos (ver ETAPA 39). Guias actualizadas.
+
+ETAPA 41: ARMAS PROVISIONALES DEL 2º JOB + AVISO DE INVENTARIO LLENO
+- Nuevos ítems (itemdata.js + iconos): Forked Spear 1432002 (Spearman), Maple Crow 1462069 (Crossbowman), Maple Gun 1492042 (Gunslinger),
+  Reef Claw 1332012 (Bandit; en tu String Eqp se llama "Reef Claw") y Seclusion Wristguard 1092018 (Bandit, sub-arma; DEF 19, LUK +1).
+- items.js: BRANCH_ONLY -> cada una solo la equipa su rama (it.only), no pide STR/DEX/LUK (los AP son automáticos y el Reef Claw pedía DEX 60) y no cae como drop.
+  equipItem recibe la rama como 6º parámetro. El Bandit ya no recibe el +15 ATT provisional de las estrellas del Thief.
+- jobs.js: weapon / sub por rama; jobs.gifts(rama). sim.js: advanceCheck(w, c, id) -> si el inventario EQUIP no tiene hueco para todo lo que se entrega,
+  el avance se CANCELA (la rama no se asigna, el personaje sigue pudiendo avanzar) y sale un aviso de 4.5 s ("libera N huecos y vuelve a avanzar de job").
+- Las armas llegan al inventario (no se equipan solas). Todavía no se ven en el personaje (lanza/ballesta/pistola usan otras poses: stand2/walk2/swingT*/swingOF);
+  eso entra con el pendiente "animaciones de arma".
+- tools/add_items.py: añade equipo a itemdata.js desde .img sin regenerar todo. Uso: python3 tools/add_items.py <String Eqp tree.json> . <archivos .img>
+- Pruebas: test_weapons2.js (nuevo). test_mage (91 equipos) y test_swamp (hpMul 2.7 tuyo) actualizados.
+
+ETAPA 42: ARMAS PROVISIONALES VISIBLES + ANIMACIONES POR ARMA
+- layerdata.js + assets/layers/ regenerados con Forked Spear, Maple Crow, Maple Gun, Reef Claw y Seclusion Wristguard (también se ve en el personaje) y poses nuevas
+  en tools/build_layers.py: stand2, walk2, swingT1, swingT3, stabT1, stabO2, shoot2, swingOF. Para regenerar: ids = todas las carpetas de wz_lib (ver ETAPA 11).
+- layers.js: MapleLayers.remap(ch, acción): si el arma equipada no trae la pose completa (todos los fotogramas del cuerpo) usa la primera alternativa que sí:
+  Lanza y Ballesta -> stand2/walk2; golpes de lanza swingP1/swingP2/swingPF, de ballesta swingT1 y su disparo shoot2; Pistola -> swingP1/swingP2; Daga usa sus swingO*.
+  Las armas anteriores no cambian (solo cambia una pose que antes dejaba el arma invisible, ej. arcos en swingO*).
+- game.js layeredFrame reescrito: calcula el progreso del ataque en decimales y lo reescala si la pose nueva tiene otro nº de fotogramas (shoot2 = 5 vs shoot1 = 3).
+- Pruebas: test_weaponpose.js
+
+ETAPA 43: ARREGLOS DEL GUNSLINGER
+- Triple Shot: ya no lanza estrellas del Thief. Las skills "ranged" con `ball` (sim.js doRangedSkill) crean proyectiles kind 'ball' con su propio ball_0 y su golpe (hit_N); game.js ya carga efecto y golpe de esas skills.
+- Animación: las skills a distancia usan la acción de la propia skill (antes siempre throwAction = swing). layers.js remap: ALIAS shot/triplefire/doublefire/handgun -> swingP1, rapidfire/gatlingshot -> swingP2 (la pistola solo trae swingP*).
+  Cualquier acción que el cuerpo no tenga cae a swingO2 en vez de devolver null (por eso Rapid Blast ('shot') dibujaba el sprite viejo de assets/char/warrior).
+- Grenade (prop 2x %, daño 50+6x %) y Wings (80 px por nivel, MP 30-4x) ya escalan con el nivel de la skill: comprobado en test_gs.js.
+
+ETAPA 44 — Gunslinger: poses de disparo reales, efecto de Triple Shot y ataque básico
+- layers.js / tools/build_layers.py: shot, triplefire, doublefire, rapidfire y handgun son acciones COMPUESTAS del cuerpo (shot = shoot2 + stabO1, como en el WZ); se empaquetan en layerdata.js (comp) y el Maple Gun ya trae esas dos poses, así que el personaje dispara con los brazos extendidos en vez de usar swingP1. Se quitó el ALIAS a swingP*.
+- skills.js: Triple Shot con los 10 fotogramas del WZ (el 0 y el 9 son 1x1 vacíos; antes faltaba el 0 y todos los destellos salían corridos un fotograma), effectDelay 90, total 0.9. 
+- sim.js / game.js: el ataque básico del Gunslinger ahora es un disparo a distancia (rango 300, bala ball_0 de Triple Shot, pose 'shot') en vez de un golpe corto cuerpo a cuerpo.
+- Si el destello de Triple Shot sigue desfasado: revisa que assets/skill/gs_triple_shot/ tenga effect_0..effect_9 (10 archivos). Si solo tiene effect_0..8, avísame.
+
+ETAPA 45 — Velocidad de ataque fiel a MapleStory
+- sim.js: cada arma trae su etapa de velocidad (campo `as` del WZ, ya estaba en itemdata). Tiempo por ataque normal según la etapa: 2=600ms 3=660 4=720 5=750 6=810 7=870 8=900 9=960 (tabla STAGE_MS). El Booster correspondiente sube 2 etapas (cualquier buff con mods.atkSpeed > 0), mínimo etapa 1.
+- Skills de arma (Warrior/Archer/Thief/Pirate): su duración se escala con la etapa respecto a 810 ms. Skills del Mage: velocidad fija (etapa 6, 810 ms) con cualquier bastón; el Booster los acelera.
+- Buffs, debuffs, summons y teleports: velocidad fija, no les afecta ni el arma ni el Booster.
+- Ninguna skill dura menos que su animación de efecto (arregla el corte de Channel Karma, Dark Clarity, Bless, Invincible, Boosters, Ground Smash, Tornado Uppercut, Cold Beam, etc.).
+- Se quita el multiplicador fijo x1.4 del Pirata (ahora depende del arma). 
+- Ninguna skill de ataque dura menos que un ataque normal del arma (Shuriken Burst y Lucky Seven duraban 0.42 s: ahora 0.66 s con Claw, 0.57 s con Booster).
+- Nuevo test_atkspeed.js. Ojo: el DPS básico baja (antes 0.54 s por ataque para todos): conviene revisar el balance de mobs.
+
+ETAPA 46 — AP rediseñados (stats más lógicos)
+- items.js: AP iniciales por clase (warrior/pirate 12/5/4/4, mage 4/4/12/5, archer 5/12/4/4, thief 4/5/4/12) y +5 AP por nivel al stat principal (Lv53 = 272). El Gunslinger intercambia STR y DEX (los AP, no los bonos de pasivas) al avanzar de job. Se acabaron los AP "de relleno" en stats secundarios.
+- calcStats devuelve s.ap (AP) además del total; la ventana Stat (S) muestra "STR 400 (120 + 280)": total (AP + externos: equipo, skills, buffs).
+- Daño: cada clase usa su stat principal (Warrior/Brawler STR, Mage INT, Archer/Gunslinger DEX, Thief LUK). Se recalibró el `mult` de cada clase para que el daño sin equipo a Lv30 sea igual que antes (coincide con tu servidor); a Lv<30 pega ~50% más y a Lv50+ ~15% menos que antes. La DEF de arma conserva su fórmula original.
+- Nuevo test_ap.js.
+
+ETAPA 47 — Límite de personajes por mapa y bono de EXP de party
+- maps.js: campo opcional `charLimit` en cada mapa (por defecto 6). Ej.: M.boars = { name: 'Wild Boar Land', ..., charLimit: 3 }.
+- sim.js: travel() rechaza el movimiento si el mapa está lleno; mapLimit(id) / mapCount(w,id) exportados.
+- worldmap.js: muestra "Capacidad x / n" en el detalle del mapa y en la ventana de mover; avisa "Mapa lleno".
+- sim.js: bono de EXP de party: +10% por cada compañero (vivo, en el mismo mapa y a menos de 25 niveles) sobre la EXP del kill, para todos; el compañero sigue recibiendo el 50% de eso. Se ajusta con PARTY_BONUS (sim.js) o cfg.partyBonus.
+- test_party.js nuevo.
+
+ETAPA 48 — Perseverance y enemigos ÉLITE
+- skills.js / sim.js: Perseverance funciona de verdad: cada (15 - nivel) s recupera ceil(nivel/2)% del HP y MP máximos (antes hpRec multiplicaba la regeneración x6 y el MP no se recuperaba). Nuevo mod `recT`.
+- sim.js: enemigos ÉLITE. Tras 75 kills (sin contar élites) en un mapa, el siguiente respawn de esa muerte sale como élite: mismo mob, HP x15, EXP x20, mesos x20, daño de contacto x2, 5 tiradas de drop, tamaño 150%. Tras morir vuelve a ser normal y el contador reinicia. Un solo élite por mapa a la vez.
+  Ajustes: constante ELITE en sim.js o `cfg.elite = { kills, hpMul, expMul, mesoMul, dmgMul, scale, drops }` (cfg.elite = false lo desactiva).
+- game.js: el élite se dibuja al 150% con aura roja, barra de vida grande siempre visible y la etiqueta ÉLITE; aviso "¡Un enemigo ÉLITE ha aparecido!".
+- Tests nuevos: test_elite.js, test_persev.js.
+
+ETAPA 49a — Debug de coordenadas (para colocar spawns de field bosses)
+- game.js: con la tecla D (debug) se muestran "Personaje: x, y, fh" (del personaje seleccionado, foothold bajo sus pies) y "Cursor: x, y, fh" (bajo el mouse). B copia las del personaje y N las del cursor al portapapeles (formato: x: 431, y: 215, fh: 127). Se puede mover el personaje a mano con A (manual) y las flechas.
+
+ETAPA 49 — Field boss Mushmom, prioridad de élites y "Ayudar jefes"
+- assets/mob/mushmom/ (importado de 6130101.img: stand, move x5, hit, die x6).
+- sim.js: `fieldBosses` en DEFAULT_CFG: { mapa: [{ id, kind, x, fh, respawn (s), drops }] }. Mushmom en Forest West (mushroom): x 97, fh 124, respawn 900 s (15 min), 10 tiradas de drop. Stats en mobRewards.mushmom (WZ: Lv18, 2500 HP, EXP 280, daño 123) con hpMul 4, expMul 3 y mesos 600-1200 (ajustables). El jefe tiene spawn propio, no interrumpe el respawn de los mobs normales ni cuenta para los élites; los demás jefes se agregan igual (otra entrada + su carpeta de sprites + mobTypes + lista de game.js).
+- IA: los élites tienen prioridad como objetivo (solo si están dentro de la zona del personaje). Nuevo flag por personaje `helpBoss` (guardado en la partida, apagado por defecto): con él activo el personaje ignora su zona y ataca al jefe mientras esté vivo.
+- chars.js: botón "Jefes" junto a "Zona" en la ventana de personajes (C).
+- game.js: lista de sprites con 'mushmom', barra de vida ancha dorada con el nombre "(JEFE)", aviso al reaparecer, guardado de helpBoss.
+- test_boss.js nuevo. Nota: el jefe reaparece al recargar la página (no se guarda su estado de respawn).
+
+ETAPA 50 — Menú hamburguesa 3x3 y ventanas exclusivas
+- mui.js: se quita la barra de botones. Botón de hamburguesa arriba a la derecha que abre un panel 3x3 con iconos (CHAR, ITEMS, SHOP, EQUIPS, STATS, SKILLS, MAPS, POTS, SETTINGS). Iconos 64 px en PC y 48 px en móvil (<700 px de ancho). Se cierra al elegir, al tocar fuera o con Esc. Los atajos E/I/S/K/T/M/P/C siguen igual.
+- SETTINGS (provisional): mostrar zonas de farmeo y reiniciar partida (con confirmación). El idioma se añade con el cambio ES/EN.
+- assets/ui/menu/*.png: iconos (32x32, escalados con pixelated). char.png y stats.png son PLACEHOLDERS dibujados: se cambian reemplazando el archivo.
+- worldmap.js / ui.js / chars.js: Mapa, Pociones y Personajes son exclusivos (al abrir uno se cierran los otros; registro window.MAPLE_PANELS). Equip, Inventario, Stat, Skill y Tienda siguen pudiendo coexistir.
+
+ETAPA 50b — Menú en lista y HUD móvil
+- mui.js: el menú hamburguesa pasa de cuadrícula 3x3 a LISTA vertical (icono + nombre + atajo): Personajes, Inventario, Tienda, Equip, Stat, Skill, Mapa, Pociones, Ajustes. Mismo comportamiento (se cierra al elegir/tocar fuera/Esc).
+- game.js: en móvil (canvas < 700 px de ancho) el nombre y nivel se muestran como "Baldir - Lv. 53" centrados sobre las barras de HP/MP/EXP; en PC queda como antes.
+
+ETAPA 50c - Menú: estilo y Esc
+- Menú más compacto (190px), líneas separadoras entre opciones, hover de borde a borde, borde exterior de 2px.
+- Esc cierra el menú/ajustes primero y luego, uno por uno, la ventana o panel abierto más recientemente (inventario, equip, stat, skill, mapa, pociones, personajes...). No actúa durante el dibujo de zona ni con el diálogo de reinicio.
+Archivos: mui.js, worldmap.js, ui.js, chars.js
+
+ETAPA 51 - Bajar de plataforma (down-jump)
+- Nueva arista 'drop' en el mapa de navegación: el personaje puede bajar a la plataforma inferior situada justo debajo (hasta C.DROP_MAX = 350 px, en sim.js).
+- Secuencia como en el juego: pose "prone" (agachado, 0.22 s = C.DROP_PRONE) y luego salto hacia abajo (pequeño hop C.DROP_HOP) atravesando la plataforma de origen.
+- También funciona con control manual: Abajo + Saltar sobre una plataforma con otra debajo.
+- La IA prefiere 'drop' a buscar el borde o una cuerda cuando la plataforma de destino está debajo.
+- Se añadió la acción 'prone' a las capas del personaje (tools/build_layers.py + layerdata.js + assets/layers/*.png regenerados; los atlas cambian de contenido).
+Archivos: sim.js, game.js, layerdata.js, assets/layers/ (carpeta completa), tools/build_layers.py
+
+ETAPA 51b - Carga más rápida y sin errores de consola (game.js)
+- Las imágenes ahora se cargan en paralelo (antes una por una): menos espera al abrir el juego.
+- Las secuencias de frames (mobs) se sondeaban hasta que fallaba el siguiente archivo (esos 404 de "move_4", "hit_1"... eran el final de la secuencia, no archivos que falten).
+  Ahora el número de frames se guarda en localStorage (clave maple_seq:<ruta>) y desde la 2ª carga sólo se piden archivos que existen.
+  Si cambias o añades frames de un mob que ya existía: abre el juego con ?nocache al final de la dirección una vez, o sube ASSET_VER en game.js.
+- assets/char (sprites antiguos de warrior/thief) ya no se carga cuando el motor de capas está disponible.
+- Los errores que queden en consola de skills (ball_1/ball_2 de as_gust_charm, effect_0, mob_0...) son archivos que skills.js declara pero no existen en assets/skill.
+
+ETAPA 51c - Archivos de skills inexistentes (game.js)
+- Los archivos que skills.js declara y no existen (p. ej. effect_0 de ht_arrow_bomb/ht_hawk/cb_hawk, mob_0..2 de ht_arrow_bomb/ht_hawk, ball_1/2 de as_gust_charm) se recuerdan en localStorage tras la primera carga y ya no se piden: la consola queda limpia desde la 2ª vez.
+- Si añades luego uno de esos archivos: abre el juego con ?nocache una vez (o sube ASSET_VER en game.js).

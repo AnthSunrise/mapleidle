@@ -64,21 +64,22 @@
 
   function skillsPanel() {
     var SK = window.MapleSkills, box = el('div', 'mi-skills');
-    box.appendChild(el('div', 'mi-h', 'SP disponible: ' + SK.spAvailable(world) + '   (3 SP por nivel)'));
+    box.appendChild(el('div', 'mi-h', 'SP disponible: ' + SK.spAvailable(world, 1) + '   (3 SP por nivel, del Lv10 al 29)'));
     SK.ORDER.forEach(function (id) {
       var sk = SK.SKILLS[id], st = world.skills[id], lv = st.level, row = el('div', 'mi-skill');
       var ic = el('div', 'mi-cell item'); ic.style.backgroundImage = 'url(' + sk.icon + ')';
       var txt = el('div', 'mi-sktxt');
+      if (sk.info) txt.innerHTML = '<b>' + sk.name + '</b> &nbsp;Lv ' + lv + ' / ' + sk.maxLevel + '<br>' + (lv > 0 ? sk.info(lv) : sk.info(1)); else
       txt.innerHTML = '<b>' + sk.name + '</b> &nbsp;Lv ' + lv + ' / ' + sk.maxLevel + '<br>' +
         (lv > 0 ? 'Daño ' + sk.damage(lv) + '% · MP ' + sk.mpCon(lv) + '<br>' : '') +
         (lv < sk.maxLevel ? 'Siguiente: ' + sk.damage(lv + 1) + '% · MP ' + sk.mpCon(lv + 1) : 'Nivel máximo') + '<br>' +
         (sk.ranged ? sk.bulletCount + ' estrellas a 1 enemigo (' + sk.range.x2 + ' px)' : 'Hasta ' + sk.mobCount + ' enemigos al frente (200 px)');
-      var plus = el('button', 'mi-plus', '+'); plus.disabled = SK.spAvailable(world) < 1 || lv >= sk.maxLevel;
+      var plus = el('button', 'mi-plus', '+'); plus.disabled = SK.spAvailable(world, SK.jobOf(sk)) < 1 || lv >= sk.maxLevel;
       plus.addEventListener('click', function () { if (SK.learn(world, id)) { G.save(); sig = ''; render(); } });
       row.appendChild(ic); row.appendChild(txt); row.appendChild(plus); box.appendChild(row);
       var lab = el('label', 'mi-auto'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = st.auto;
       cb.addEventListener('change', function () { st.auto = cb.checked; G.save(); });
-      lab.appendChild(cb); lab.appendChild(document.createTextNode(' Auto farm (usarla sola al atacar)')); box.appendChild(lab);
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(' Auto farm (usarla sola al atacar)')); if (!sk.passiveSkill) box.appendChild(lab);
     });
     box.appendChild(el('div', 'mi-stats', 'Modo manual: tecla X lanza Slash Blast.'));
     return box;
@@ -127,7 +128,8 @@
     if (s === sig) return;
     sig = s; build();
   }
-  function toggle() { isOpen = !isOpen; win.style.display = isOpen ? 'block' : 'none'; sig = ''; render(); }
+  (window.MAPLE_PANELS = window.MAPLE_PANELS || {}).pots = { isOpen: function () { return isOpen; }, close: function () { if (isOpen) toggle(); } };
+  function toggle() { isOpen = !isOpen; win.style.display = isOpen ? 'block' : 'none'; sig = ''; if (isOpen) { var P = window.MAPLE_PANELS; for (var k in P) if (k !== 'pots' && P[k].isOpen()) P[k].close(); P.pots.t = performance.now(); } render(); }
   btn.addEventListener('click', toggle);
   addEventListener('keydown', function (e) { if (e.code === 'KeyP' && !e.repeat) toggle(); });
   setInterval(render, 400);

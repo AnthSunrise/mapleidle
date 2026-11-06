@@ -5,7 +5,8 @@ Uso: python3 build_layers.py <wz_lib> <wz_base_out> <juego_dir> <id_cuerpo> <id_
 import sys, os, json, hashlib
 from PIL import Image
 lib, base, game, body, head = sys.argv[1:6]; ids = [body, head] + sys.argv[6:]
-ACTIONS = ['stand1', 'walk1', 'jump', 'alert', 'swingO1', 'swingO2', 'swingO3', 'stabO1', 'shoot1']
+ACTIONS = ['stand1', 'walk1', 'jump', 'alert', 'swingO1', 'swingO2', 'swingO3', 'stabO1', 'shoot1', 'swingP1', 'swingP2', 'swingPF', 'swingT2', 'stabT2', 'ladder', 'rope',
+           'stand2', 'walk2', 'swingT1', 'swingT3', 'stabT1', 'stabO2', 'shoot2', 'swingOF', 'prone']   # (etapa 42: poses de lanza, ballesta, pistola y daga)
 zm = json.load(open(os.path.join(base, 'zmap/tree.json'))); sm = json.load(open(os.path.join(base, 'smap/tree.json')))
 zlist = list(zm.keys())            # de delante hacia atrás
 os.makedirs(os.path.join(game, 'assets/layers'), exist_ok=True)
@@ -78,6 +79,17 @@ for i in ids:
             if not item['a'] and tree.get('default'):          # gorros: capa única 'default'
                 dflt = tree['default']
                 item['static'] = [L for L in (layer(['default', k], v, k) for k, v in dflt.items() if isinstance(v, dict)) if L]
+    if i == body:   # acciones compuestas: cada fotograma referencia otra acción (+ desplazamiento y rotación); somersault y poses de disparo (shot = shoot2 + stabO1)
+        item['comp'] = {}
+        for cname in ('somersault', 'shot', 'triplefire', 'doublefire', 'rapidfire', 'handgun'):
+            if not isinstance(tree.get(cname), dict): continue
+            comp = []
+            for k in sorted([k for k in tree[cname] if k.isdigit()], key=int):
+                fn = tree[cname][k]; mv = fn.get('move') or {}
+                d = abs(fn.get('delay', 0))
+                if cname != 'somersault' and d == 0: continue    # fotograma final de retorno (delay 0)
+                comp.append({'a': fn.get('action'), 'f': fn.get('frame', 0), 'd': d, 'mv': [mv.get('x', 0), mv.get('y', 0)], 'rot': fn.get('rotate', 0)})
+            item['comp'][cname] = comp
     # atlas
     items = sorted(imgs.values(), key=lambda x: -x[1].height); W = 1024; x = y = rowh = 0; rects = {}
     for idx, im in items:

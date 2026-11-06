@@ -42,7 +42,7 @@
     if (sel) {
       var M = MAPS[sel], ch = where(sel);
       det.appendChild(el('div', 'wm-h', M.name));
-      det.appendChild(el('div', '', 'Nivel recomendado: ' + M.lv));
+      det.appendChild(el('div', '', 'Nivel recomendado: ' + M.lv + '  ·  Capacidad: ' + S.mapCount(world, sel) + ' / ' + S.mapLimit(sel)));
       det.appendChild(el('div', '', 'Enemigos: ' + mobLine(sel)));
       det.appendChild(el('div', '', 'Personajes aquí: ' + (ch.length ? ch.map(function (c) { return c.name; }).join(', ') : 'ninguno')));
       var go = el('button', 'wm-go', 'Mover personajes...'); go.addEventListener('click', function () { openMove(sel); }); det.appendChild(go);
@@ -53,23 +53,27 @@
   function openMove(id) {
     var ov = el('div', 'wm-ov'), box = el('div', 'wm-box'), checks = [];
     box.appendChild(el('div', 'wm-h', 'Mover a ' + MAPS[id].name));
+    var lim = S.mapLimit(id); box.appendChild(el('div', '', 'Capacidad: ' + S.mapCount(world, id) + ' / ' + lim + ' personajes'));
     world.chars.forEach(function (c, i) {
-      var dead = c.player.state === 'dead', here = c.mapId === id, row = el('label', 'wm-chk' + (dead || here ? ' dis' : '')), cb = document.createElement('input'); cb.type = 'checkbox';
-      cb.disabled = dead || here; cb.checked = !cb.disabled && i === world.selected; checks.push(cb);
-      row.appendChild(cb); row.appendChild(el('span', '', c.name + '  Lv ' + c.stats.level + '  · ' + MAPS[c.mapId].name + (dead ? ' (muerto)' : here ? ' (ya está aquí)' : ''))); box.appendChild(row);
+      var dead = c.player.state === 'dead', here = c.mapId === id, low = c.stats.level < 10 && id !== 'henesys', row = el('label', 'wm-chk' + (dead || here || low ? ' dis' : '')), cb = document.createElement('input'); cb.type = 'checkbox';
+      cb.disabled = dead || here || low; cb.checked = !cb.disabled && i === world.selected; checks.push(cb);
+      row.appendChild(cb); row.appendChild(el('span', '', c.name + '  Lv ' + c.stats.level + '  · ' + MAPS[c.mapId].name + (dead ? ' (muerto)' : here ? ' (ya está aquí)' : low ? ' (necesita Lv 10)' : ''))); box.appendChild(row);
     });
     var act = el('div', 'wm-act'), no = el('button', 'wm-go', 'Cancelar'), ok = el('button', 'wm-go', 'Mover');
     no.addEventListener('click', function () { ov.remove(); });
     ok.addEventListener('click', function () {
       var moved = [], focusSel = false;
-      checks.forEach(function (cb, i) { if (cb.checked && S.travel(world, world.chars[i], id)) { moved.push(world.chars[i].name); if (i === world.selected) focusSel = true; } });
-      msg = moved.length ? 'Movidos: ' + moved.join(', ') : 'No se movió a nadie.';
+      var full = 0;
+      checks.forEach(function (cb, i) { if (!cb.checked) return; if (S.travel(world, world.chars[i], id)) { moved.push(world.chars[i].name); if (i === world.selected) focusSel = true; } else if (S.mapCount(world, id) >= lim) full++; });
+      msg = (moved.length ? 'Movidos: ' + moved.join(', ') : 'No se movió a nadie.') + (full ? ' · Mapa lleno (máx. ' + lim + ')' : '');
       if (focusSel) G.focus(world.selected);
       G.save(); ov.remove(); render();
     });
     act.appendChild(no); act.appendChild(ok); box.appendChild(act); ov.appendChild(box); document.body.appendChild(ov);
   }
-  function toggle() { isOpen = !isOpen; win.style.display = isOpen ? 'block' : 'none'; if (isOpen) { if (!sel) sel = world.chars[world.selected].mapId; render(); } }
+  (window.MAPLE_PANELS = window.MAPLE_PANELS || {}).map = { isOpen: function () { return isOpen; }, close: function () { if (isOpen) toggle(); } };
+  function closeOthers(n) { var P = window.MAPLE_PANELS; for (var k in P) if (k !== n && P[k].isOpen()) P[k].close(); }   // Mapa, Pociones y Personajes: solo uno abierto
+  function toggle() { isOpen = !isOpen; win.style.display = isOpen ? 'block' : 'none'; if (isOpen) { closeOthers('map'); window.MAPLE_PANELS.map.t = performance.now(); if (!sel) sel = world.chars[world.selected].mapId; render(); } }
   btn.addEventListener('click', toggle);
   addEventListener('keydown', function (e) { if (e.code === 'KeyM' && !e.repeat && !/INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName || '')) toggle(); });
   setInterval(function () { if (isOpen && !document.querySelector('.wm-ov')) render(); }, 1000);

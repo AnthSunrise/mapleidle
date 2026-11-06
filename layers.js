@@ -6,7 +6,7 @@
   'use strict';
   var D = root.MapleLayerData; if (!D) return;
   var BODY = '00002000', HEAD = '00012000';
-  var LOOKS = { warrior: { hair: '00036787', face: '00023100' }, thief: { hair: '00036794', face: '00023301' }, archer: { hair: '00037783', face: '00021195' } };
+  var LOOKS = { warrior: { hair: '00036787', face: '00023100' }, thief: { hair: '00036794', face: '00023301' }, archer: { hair: '00037783', face: '00021195' }, pirate: { hair: '00031862', face: '00024432' }, mage: { hair: '00037775', face: '00021101' } };
   var ZI = {}; D.zmap.forEach(function (z, i) { ZI[z] = i; });
   var BASE_SLOT = {}; BASE_SLOT[BODY] = 'Bd'; BASE_SLOT[HEAD] = 'Hd';
   var imgs = {}, cache = {}, cacheN = 0;
@@ -21,8 +21,9 @@
     im.src = 'assets/layers/' + id + '.png'; return false;
   }
   function defaultLook(cls) { var l = LOOKS[cls] || LOOKS.warrior; return { hair: l.hair, face: l.face }; }
-  function frames(action) { var b = D.items[BODY].a[action]; return b ? b.length : 0; }
-  function delays(action) { var b = D.items[BODY].a[action]; return b ? b.map(function (f) { return f.d || 100; }) : []; }
+  function compOf(action) { var c = D.items[BODY].comp; return c && c[action]; }
+  function frames(action) { var cp = compOf(action); if (cp) return cp.length; var b = D.items[BODY].a[action]; return b ? b.length : 0; }
+  function delays(action) { var cp = compOf(action); if (cp) return cp.map(function (f) { return f.d || 100; }); var b = D.items[BODY].a[action]; return b ? b.map(function (f) { return f.d || 100; }) : []; }
 
   // lista de capas {id, L} de un fotograma
   function gather(look, ids, action, f) {
@@ -55,7 +56,7 @@
       progress = false;
       for (var i = 0; i < pend.length; i++) {
         var e = pend[i], m = e.L.m, o = null;
-        if (e.id === BODY && e.L.z === 'body') o = [0, 0];
+        if (e.id === BODY && e.L.p === 'body') o = [0, 0];
         else { for (var n in m) if (anchors[n]) { o = [anchors[n][0] - m[n][0], anchors[n][1] - m[n][1]]; break; }
           if (!o && m.handMove && anchors.hand) o = [anchors.hand[0] - m.handMove[0], anchors.hand[1] - m.handMove[1]]; }
         if (o) { define(e, o[0], o[1]); pend.splice(i, 1); i--; progress = true; }
@@ -74,12 +75,46 @@
     var look = ch.look || (ch.look = defaultLook(ch.cls)), ids = [], eq = ch.equip || {};
     Object.keys(eq).sort().forEach(function (s) { if (eq[s]) ids.push(pad(eq[s])); });
     var ready = ensure(BODY) & ensure(HEAD) & ensure(look.face) & ensure(look.hair); ids.forEach(function (id) { ready &= ensure(id); });
+    var cp = compOf(action);
+    if (cp) {   // acción compuesta (somersault): fotograma de otra acción, girado alrededor del origen y desplazado
+      if (!ready) return null;
+      f = Math.max(0, Math.min(cp.length - 1, f)); var cf = cp[f], base = frame(ch, cf.a, cf.f); if (!base) return null;
+      var ck = 'C' + look.hair + look.face + ids.join(',') + '|' + action + '|' + f, cc = cache[ck];
+      if (!cc) {
+        var th = (cf.rot || 0) * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), w = base.cv.width, h = base.cv.height;
+        var pts = [[-base.rx, -base.ry], [w - base.rx, -base.ry], [w - base.rx, h - base.ry], [-base.rx, h - base.ry]].map(function (q) { return [q[0] * cs - q[1] * sn, q[0] * sn + q[1] * cs]; });
+        var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
+        var x0 = Math.floor(Math.min.apply(null, xs)), y0 = Math.floor(Math.min.apply(null, ys)), x1 = Math.ceil(Math.max.apply(null, xs)), y1 = Math.ceil(Math.max.apply(null, ys));
+        var cv = document.createElement('canvas'); cv.width = Math.max(1, x1 - x0); cv.height = Math.max(1, y1 - y0); var cx = cv.getContext('2d');
+        cx.translate(-x0, -y0); cx.rotate(th); cx.drawImage(base.cv, -base.rx, -base.ry);
+        cc = cache[ck] = { cv: cv, rx: -x0 - cf.mv[0], ry: -y0 - cf.mv[1] }; cacheN++;
+      }
+      return cc;
+    }
     if (!ready || !D.items[BODY].a[action]) return null;
     f = Math.max(0, Math.min(frames(action) - 1, f));
     var key = look.hair + look.face + ids.join(',') + '|' + action + '|' + f, c = cache[key];
     if (!c) { if (cacheN > 600) { cache = {}; cacheN = 0; } c = cache[key] = compose(look, ids, action, f); cacheN++; }
     return c;
   }
-  var api = { frame: frame, frames: frames, delays: delays, defaultLook: defaultLook, ready: function () { return !!D; } };
+  // Poses según el arma: lanza y ballesta usan stand2/walk2 y sus propios golpes; la pistola usa swingP*. Si el arma equipada no trae la acción completa
+  // (le faltan fotogramas respecto al cuerpo) se busca la primera alternativa que sí tenga todos; si no hay, se deja la acción original (armas anteriores no cambian).
+  var CHAIN = { stand1: ['stand2'], walk1: ['walk2'], swingO1: ['swingP1', 'swingT1', 'swingT2'], swingO2: ['swingP2', 'swingT2', 'swingT1'], swingO3: ['swingPF', 'swingT3', 'swingT1'],
+    stabO1: ['swingP1', 'stabT1', 'swingT1'], stabO2: ['stabT2', 'swingP2'], shoot1: ['shoot2', 'swingP1'] };
+  function weaponFull(it, action) { var a = it.a && it.a[action], n = frames(action); return !!a && a.length >= n && n > 0; }
+  // acciones de skill que el cuerpo no empaqueta (nombres del cliente) -> pose parecida que sí existe (la pistola las dibuja con swingP*)
+  var ALIAS = { gatlingshot: 'rapidfire' };
+  function remap(ch, action) {
+    if (ALIAS[action]) action = ALIAS[action];
+    var r = remap0(ch, action);
+    return D.items[BODY].a[r] || compOf(r) ? r : 'swingO2';   // nunca una acción desconocida (si no, el juego dibujaba el sprite viejo de assets/char)
+  }
+  function remap0(ch, action) {
+    var w = ch && ch.equip && ch.equip.weapon, it = w && D.items[pad(w)], ch2 = CHAIN[action];
+    if (!it || !it.atlas || !ch2 || weaponFull(it, action)) return action;
+    for (var i = 0; i < ch2.length; i++) if (weaponFull(it, ch2[i]) && D.items[BODY].a[ch2[i]]) return ch2[i];
+    return action;
+  }
+  var api = { remap: remap, frame: frame, frames: frames, delays: delays, defaultLook: defaultLook, ready: function () { return !!D; } };
   root.MapleLayers = api;
 })(typeof window !== 'undefined' ? window : globalThis);

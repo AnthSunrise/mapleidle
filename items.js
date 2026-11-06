@@ -23,6 +23,17 @@
     var d = DATA[id], beg = BEGINNER.indexOf(id) >= 0;
     ITEMS[id] = { id: id, name: d.n, kind: 'equip', type: d.t, overall: !!d.ov, lv: beg ? 0 : d.lv, req: beg ? [0, 0, 0, 0] : d.req, stats: d.st, cls: CLS_OVERRIDE[id] || d.cls || null, speed: d.as || 0, tuc: d.tuc || 0 };
   });
+  //  - Explorer's Lumati (1051204): en el WZ es nivel 30 con DEX +4; aquí es la opción del Archer para nivel 15 con DEX +2 (decisión del autor).
+  var OVERRIDE = { '1051204': { lv: 15, stats: { dex: 2 } } };
+  Object.keys(OVERRIDE).forEach(function (id) {
+    var it = ITEMS[id], o = OVERRIDE[id]; if (!it) return;
+    if (o.lv !== undefined) it.lv = o.lv;
+    if (o.stats) for (var k in o.stats) it.stats[k] = o.stats[k];
+  });
+  //  - Armas PROVISIONALES del 2º job (jobs.js las entrega al avanzar): solo las usa esa rama, no caen como drop y no piden STR/DEX/LUK (el reparto de AP es automático).
+  //    Reef Claw (1332012) y Seclusion Wristguard (1092018) para Bandit; Forked Spear (1432002) Spearman; Maple Crow (1462069) Crossbowman; Maple Gun (1492042) Gunslinger.
+  var BRANCH_ONLY = { '1432002': 'spearman', '1462069': 'crossbowman', '1492042': 'gunslinger', '1332012': 'bandit', '1092018': 'bandit' };
+  Object.keys(BRANCH_ONLY).forEach(function (id) { var it = ITEMS[id]; if (!it) return; it.only = BRANCH_ONLY[id]; it.req = [0, 0, 0, 0]; });
   // ids de las pruebas/guardados anteriores -> equipo real equivalente
   var ALIAS = { sword_1: '1302077', sword_2: '1302183', sword_3: '1302043', sword_4: '1302211', claw_1: '1472061', claw_2: '1472003', claw_3: '1472006', claw_4: '1472093' };
   function startEquip(cls) { var c = CLASSES[cls || 'warrior']; return { top: '1052646', shoes: '1072850', weapon: c.weapon }; }
@@ -42,27 +53,51 @@
   ];
 
   // Clase: stat principal/secundario y reparto automático por nivel (AP). Propuesta mía: ajústala.
+  var GS_MULT = 5.58;   // Gunslinger (DEX principal, STR secundario)
+  // mult recalibrado al rediseñar los AP (etapa 46): el daño sin equipo a Lv30 queda igual que antes (~1.0x) aunque ahora el stat principal sea menor.
   var CLASSES = {
-    warrior: { label: 'Warrior', weapon: '1302077', mult: 4, main: 'str', sub: 'dex', base: { str: 12, dex: 5, int: 4, luk: 4 }, perLevel: { str: 4, dex: 1, int: 0, luk: 0 } },
-    // Thief (Assassin, a distancia): LUK principal, DEX secundario. Valores propuestos (provisionales)
-    // Archer (a distancia, arco): DEX principal, STR secundario. Valores propuestos (provisionales)
-    archer: { label: 'Archer', weapon: '1452051', mult: 3.4, main: 'dex', sub: 'str', base: { str: 5, dex: 12, int: 4, luk: 4 }, perLevel: { str: 1, dex: 4, int: 0, luk: 0 } },
-    thief: { label: 'Thief', weapon: '1472061', mult: 3.6, starAtt: 15, main: 'luk', sub: 'dex', base: { str: 4, dex: 5, int: 4, luk: 12 }, perLevel: { str: 0, dex: 1, int: 0, luk: 4 } }
+    // Calibrado con las capturas de Stat de tu servidor (Lv30 con los 100 AP libres puestos en el stat principal).
+    // Stats: todos empiezan en 4; hasta el Lv10 (Beginner) +6 al stat principal por nivel; desde el Lv11 reparto por clase (post, por nivel).
+    // cal = ajuste del ATT del arma para que el daño del arma base coincida con tu servidor; minR = daño mínimo / máximo
+    warrior: { label: 'Warrior', weapon: '1302077', mult: 6.185, cal: 1.24, minR: 0.2, main: 'str', sub: 'dex', post: { str: 9, dex: 1, int: 0, luk: 0 } },
+    // Mage (magia): INT principal, LUK secundario; el daño sale del ATT MÁGICO (matt) del arma
+    mage: { label: 'Mage', weapon: '1382100', mult: 4.02, cal: 1.334, minR: 0.25, magic: true, main: 'int', sub: 'luk', post: { str: 4, dex: 1, int: 5, luk: 0 }, defMul: 0.72 },
+    archer: { label: 'Archer', weapon: '1452051', mult: 4.36, cal: 1.663, minR: 0.15, main: 'dex', sub: 'str', post: { str: 4, dex: 6, int: 0, luk: 0 } },
+    pirate: { label: 'Pirate', weapon: '1482000', mult: 10.88, cal: 1.238, minR: 0.2, main: 'str', sub: 'dex', post: { str: 9, dex: 1, int: 0, luk: 0 } },
+    thief: { label: 'Thief', weapon: '1472061', mult: 3.74, cal: 2.16, minR: 0.15, starAtt: 15, main: 'luk', sub: 'dex', post: { str: 4, dex: 1, int: 0, luk: 5 } }
   };
 
-  function calcStats(level, equip, cls) {
+
+  // AP: stats al crear el personaje (AP automáticos) y +5 AP por nivel al stat principal. El Gunslinger intercambia STR y DEX al avanzar de job.
+  var AP_START = { warrior: [12, 5, 4, 4], mage: [4, 4, 12, 5], archer: [5, 12, 4, 4], thief: [4, 5, 4, 12], pirate: [12, 5, 4, 4] }, AP_PER_LEVEL = 5, STATK = ['str', 'dex', 'int', 'luk'];
+  function apStats(level, cls, branch) {
+    var c = CLASSES[cls || 'warrior'], st = AP_START[cls || 'warrior'], o = {};
+    STATK.forEach(function (k, i) { o[k] = st[i] + (k === c.main ? AP_PER_LEVEL * Math.max(0, level - 1) : 0); });
+    if (cls === 'pirate' && branch === 'gunslinger') { var t0 = o.str; o.str = o.dex; o.dex = t0; }
+    return o;
+  }
+  function calcStats(level, equip, cls, branch, bonus) {
     var c = CLASSES[cls || 'warrior'], s = { str: 0, dex: 0, int: 0, luk: 0, att: 0, matt: 0, def: 0, mhp: 0, mmp: 0, acc: 0, eva: 0 };
-    ['str', 'dex', 'int', 'luk'].forEach(function (k) { s[k] = c.base[k] + (level - 1) * c.perLevel[k]; });
+    var ap = apStats(level, cls, branch); s.ap = { str: ap.str, dex: ap.dex, int: ap.int, luk: ap.luk };   // AP (inicial + por nivel); el resto del total es externo (equipo, pasivas, buffs)
+    STATK.forEach(function (k) { s[k] = ap[k]; });
+    // DEF de arma: usa la curva de STR antigua (con la que se calibró contra tu servidor) para no cambiar la supervivencia al rediseñar los AP
+    s.baseStr = 4 + (c.main === 'str' ? 6 * Math.min(level - 1, 9) : 0) + Math.floor(c.post.str * Math.max(0, level - 10) + 1e-9);
+    if (bonus) { s.str += bonus.str || 0; s.dex += bonus.dex || 0; s.int += bonus.int || 0; s.luk += bonus.luk || 0; s.matt += bonus.matt || 0; }   // pasivas (Physical Training...); el STR/DEX base de la DEF no cambia
+    // Pirate Gunslinger: stat principal DEX (los AP de STR pasan a DEX) y secundario STR; mult de pistola provisional
+    if (cls === 'pirate' && branch === 'gunslinger') c = Object.assign({}, c, { main: 'dex', sub: 'str', mult: GS_MULT });   // los AP ya vienen intercambiados (apStats)
     SLOTS.forEach(function (sl) {
       var it = ITEMS[equip && equip[sl]]; if (!it) return;
       for (var k in it.stats) s[k] = (s[k] || 0) + it.stats[k];
     });
-    if (!equip || !equip.weapon) s.att += BARE_ATT;
-    s.att += c.starAtt || 0;   // Thief: ATT PROVISIONAL de las estrellas (cuando sean el arma secundaria saldrá de ellas)
+    if (!equip || !equip.weapon) { if (c.magic) s.matt += BARE_ATT; else s.att += BARE_ATT; }
+    if (!(cls === 'thief' && branch === 'bandit')) s.att += c.starAtt || 0;   // Thief: ATT PROVISIONAL de las estrellas (cuando sean el arma secundaria saldrá de ellas)
     // fórmula tipo MapleStory (aproximada): (principal*4 + secundario) * ATT / 100
-    var max = Math.floor((s[c.main] * c.mult + s[c.sub]) * s.att / 100);
-    var min = Math.floor((s[c.main] * c.mult * 0.9 * 0.6 + s[c.sub]) * s.att / 100);
-    s.max = Math.max(1, max); s.min = Math.max(1, Math.min(min, s.max));
+    if (bonus && bonus.att) { if (c.magic) s.matt += bonus.att; else s.att += bonus.att; }   // buffs de ATT (Rage...)
+    var A = (c.magic ? s.matt : s.att) * c.cal;   // el Mage usa el ATT mágico
+    var max = Math.round((s[c.main] * c.mult + s[c.sub]) * A / 100);
+    s.max = Math.max(1, max); s.min = Math.max(1, Math.min(Math.round(s.max * Math.max(c.minR, (bonus && bonus.mastery) || 0)), s.max));
+    // DEF de arma (Weapon DEF) como en tu servidor: 1.104*STR + 3.95*nivel - 13 (el Mage tiene 0.72 de eso) + la del equipo
+    s.def += Math.max(0, Math.round((1.104 * s.baseStr + 3.95 * level - 13) * (c.defMul || 1)));
     return s;
   }
 
@@ -104,10 +139,11 @@
   function canAdd(inv, id, n) { var c = { equip: inv.equip.slice(), use: inv.use.map(function (s) { return s && { id: s.id, count: s.count }; }) }; return addItem(c, id, n); }
   var STAT_NAME = ['STR', 'DEX', 'INT', 'LUK'];
   // Equipar: clase, nivel y stats base (sin equipo) mínimos. Un overall (Longcoat) ocupa Top y Bottom: al equiparlo el Bottom vuelve al inventario y al revés.
-  function equipItem(inv, equip, level, idx, cls) {
+  function equipItem(inv, equip, level, idx, cls, branch) {
     var id = inv.equip[idx], it = ITEMS[id];
     if (!it) return { ok: false, msg: 'Slot vacío' };
     if (it.cls && cls && it.cls !== cls) return { ok: false, msg: it.name + ': solo para ' + (CLASSES[it.cls] ? CLASSES[it.cls].label : it.cls) };
+    if (it.only && branch !== it.only) return { ok: false, msg: it.name + ': solo para ' + it.only.charAt(0).toUpperCase() + it.only.slice(1) };
     if (level < it.lv) return { ok: false, msg: it.name + ': requiere nivel ' + it.lv };
     var base = calcStats(level, {}, cls || 'warrior');
     for (var r = 0; r < 4; r++) { var k = STAT_NAME[r].toLowerCase(); if (it.req && it.req[r] > base[k]) return { ok: false, msg: it.name + ': requiere ' + STAT_NAME[r] + ' ' + it.req[r] }; }
@@ -139,11 +175,11 @@
   // Drops por kill (ajustables)
   function rollDrop(level, rnd) {
     rnd = rnd || Math.random; var out = [];
-    if (rnd() < 0.25) out.push({ id: 'red_potion', n: 1 });
-    if (rnd() < 0.15) out.push({ id: 'blue_potion', n: 1 });
-    if (rnd() < 0.05) out.push({ id: 'scroll_piece', n: 1 });
-    if (rnd() < 0.06) {
-      var pool = Object.keys(ITEMS).filter(function (k) { var it = ITEMS[k]; return it.kind === 'equip' && it.lv > 0 && it.lv <= level + 5 && (!it.cls || CLASSES[it.cls]); });
+    if (rnd() < 0.07) out.push({ id: 'red_potion', n: 1 });
+    if (rnd() < 0.045) out.push({ id: 'blue_potion', n: 1 });
+    if (rnd() < 0.01) out.push({ id: 'scroll_piece', n: 1 });
+    if (rnd() < 0.012) {
+      var pool = Object.keys(ITEMS).filter(function (k) { var it = ITEMS[k]; return it.kind === 'equip' && it.lv > 0 && !it.only && it.lv <= level + 5 && (!it.cls || CLASSES[it.cls]); });
       if (pool.length) out.push({ id: pool[Math.floor(rnd() * pool.length)], n: 1 });
     }
     return out;

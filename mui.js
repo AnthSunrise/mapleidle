@@ -33,7 +33,8 @@
     '#mw-tip b{color:#ffe9a8}#mw-toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:70;background:rgba(14,18,34,.92);color:#fff;border:1px solid #8a96c8;border-radius:6px;padding:6px 12px;font:13px sans-serif;display:none;pointer-events:none}';
   document.head.appendChild(css);
   tipEl = el('div'); tipEl.id = 'mw-tip'; toastEl = el('div'); toastEl.id = 'mw-toast'; document.body.appendChild(tipEl); document.body.appendChild(toastEl);
-  function toast(t) { toastEl.textContent = t; toastEl.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(function () { toastEl.style.display = 'none'; }, 1800); }
+  function toast(t, ms) { toastEl.textContent = t; toastEl.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(function () { toastEl.style.display = 'none'; }, ms || 1800); }
+  window.MAPLE_GAME.toast = function (t) { toast(t, 4500); };   // avisos largos (ej. inventario lleno al avanzar de job)
   function showTip(e, html) { tipEl.innerHTML = html; tipEl.style.display = 'block'; var x = Math.min(innerWidth - tipEl.offsetWidth - 6, e.clientX + 14), y = Math.min(innerHeight - tipEl.offsetHeight - 6, e.clientY + 14); tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px'; }
   function hideTip() { tipEl.style.display = 'none'; }
   var NAMES = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK', att: 'ATT', matt: 'MATT', def: 'DEF', mdef: 'MDEF', mhp: 'HP', mmp: 'MP', acc: 'ACC', eva: 'AVOID', speed: 'Speed', jump: 'Jump' };
@@ -49,7 +50,7 @@
     var it = I.ITEMS[id]; if (!it) return '';
     var ic = '<div class="tt-icon"><img src="assets/item/' + id + '.png" draggable="false" onerror="this.style.display=\'none\'"></div>';
     if (it.kind === 'use') return '<div class="tt"><div class="tt-name">' + it.name + '</div><div class="tt-sep"></div><div class="tt-row">' + ic + '<div class="tt-desc">' + it.desc + '</div></div></div>';
-    var ch = world.chars[world.selected], base = I.calcStats(ch.stats.level, {}, ch.cls), lv = ch.stats.level;
+    var ch = world.chars[world.selected], base = I.calcStats(ch.stats.level, {}, ch.cls, ch.branch), lv = ch.stats.level;
     var reqs = [['LEV', it.lv, lv >= it.lv], ['STR', it.req[0], base.str >= it.req[0]], ['DEX', it.req[1], base.dex >= it.req[1]], ['INT', it.req[2], base.int >= it.req[2]], ['LUK', it.req[3], base.luk >= it.req[3]]];
     var rq = reqs.map(function (r) { return '<div class="tt-req">' + ttImg((r[2] ? 'can_req' : 'cant_req') + r[0]) + ttNum(r[1], r[2]) + '</div>'; }).join('');
     var jobs = JOBS.map(function (j) { var ok = !it.cls || JOBCLS[it.cls] === j || (j === 'beginner' && false); return ttImg((ok ? 'can_' : 'can0_') + j); }).join('');
@@ -71,7 +72,7 @@
     inn.appendChild(img); o.appendChild(inn); document.body.appendChild(o);
     var drag = el('div', 'mw-drag'), x = el('div', 'mw-x', '×'); inn.appendChild(drag); inn.appendChild(x);
     var W = { id: id, root: o, inn: inn, open: false };
-    W.set = function (v) { W.open = v; o.style.display = v ? 'block' : 'none'; if (v) { o.style.zIndex = ++z; W.refresh && W.refresh(true); } };
+    W.set = function (v) { W.open = v; if (v) W.t = performance.now(); o.style.display = v ? 'block' : 'none'; if (v) { o.style.zIndex = ++z; W.refresh && W.refresh(true); } };
     W.toggle = function () { W.set(!W.open); };
     o.addEventListener('pointerdown', function () { o.style.zIndex = ++z; });
     x.addEventListener('click', function () { W.set(false); });
@@ -131,7 +132,7 @@
       if (tab === 'equip') {
         var id = world.inv.equip[idx]; c = cellEl(full, x, y, id, 1);
         if (id) {
-          c.addEventListener('click', function () { var r = I.equipItem(world.inv, world.equip, world.stats.level, idx, world.chars[world.selected].cls); toast(r.msg); G.save(); isig = ''; hideTip(); IW.refresh(); EW.refresh(true); });
+          c.addEventListener('click', function () { var r = I.equipItem(world.inv, world.equip, world.stats.level, idx, world.chars[world.selected].cls, world.chars[world.selected].branch); toast(r.msg); G.save(); isig = ''; hideTip(); IW.refresh(); EW.refresh(true); });
           c.addEventListener('contextmenu', function (e) { e.preventDefault(); toast('Descartado: ' + I.ITEMS[id].name); world.inv.equip[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
         }
       } else {
@@ -180,51 +181,81 @@
     ['atk', 'wdef', 'matk', 'mdef', 'acc', 'avoid', 'hands', 'speed', 'jump'].forEach(function (k, i) {
       var f = el('div'); f.style.cssText = 'position:absolute;left:62px;top:' + (i * 18 + 7) + 'px;width:107px;height:14px;line-height:14px;font:11px Tahoma,Arial;color:#222;text-align:right;white-space:nowrap'; sdet.appendChild(f); sfields[k] = f;
     });
+    var ex = el('div'); ex.style.cssText = 'position:absolute;left:3px;top:206px;width:171px;padding:4px 6px;box-sizing:border-box;background:rgba(236,242,248,.92);border:1px solid #8a96a8;border-radius:3px;font:11px Tahoma,Arial;color:#222;line-height:15px'; sdet.appendChild(ex); sfields.extra = ex;   // fuera del fondo original: crítico y esquiva
     bd.addEventListener('click', function () { sdetOpen = !sdetOpen; sdet.style.display = sdetOpen ? 'block' : 'none'; });
   })();
   SW.refresh = function (force) {
     if (!SW.open) return;
-    var ch = world.chars[world.selected], st = world.stats, t = I.calcStats(st.level, world.equip, ch.cls), need = S.expToNext(st.level), s = JSON.stringify([ch.name, st, world.equip, world.selected, sdetOpen]);
+    var ch = world.chars[world.selected], st = world.stats, t = S.cstatsOf(ch), need = S.expToNext(st.level), s = JSON.stringify([ch.name, st, world.equip, world.selected, sdetOpen, ch.skills, ch.buffs.map(function (b) { return b.id; })]);
     if (!force && s === ssig) return; ssig = s;
     var pct = st.level >= S.MAX_LEVEL ? 100 : st.exp / need * 100;
     function setv(k, v) { sfields[k].textContent = v; }
     setv('name', ch.name); setv('job', I.CLASSES[ch.cls].label); setv('level', st.level); setv('guild', '-'); setv('hp', Math.ceil(st.hp) + ' / ' + st.maxHp); setv('mp', Math.floor(st.mp) + ' / ' + st.maxMp);
     setv('exp', st.level >= S.MAX_LEVEL ? 'MAX' : Math.floor(st.exp) + ' (' + pct.toFixed(1) + '%)'); setv('fame', 0); setv('ap', 0);
-    ['str', 'dex', 'int', 'luk'].forEach(function (k) { setv(k, t[k]); });
-    setv('atk', t.min + ' ~ ' + t.max); setv('wdef', t.def); setv('matk', t.int + t.matt); setv('mdef', t.mdef || 0); setv('acc', t.dex + t.acc); setv('avoid', t.eva); setv('hands', 0); setv('speed', '100%'); setv('jump', '100%');
+    ['str', 'dex', 'int', 'luk'].forEach(function (k) { setv(k, t[k] + ' (' + t.ap[k] + ' + ' + (t[k] - t.ap[k]) + ')'); });   // total (AP + externos: equipo, skills, buffs) como MapleStory
+    setv('atk', t.min + ' ~ ' + t.max); setv('wdef', t.def); setv('matk', t.int + t.matt); setv('mdef', t.mdef || 0); setv('acc', t.dex + t.acc); setv('avoid', t.eva); setv('hands', 0);
+    var md = S.mods(ch); setv('speed', Math.round((1 + md.speed) * 100) + '%'); setv('jump', '100%');
+    var dodge = md.eva > 0 ? md.eva / (md.eva + 600) : 0;
+    sfields.extra.innerHTML = 'Crítico: <b>' + Math.round(((world.cfg.baseCrit !== undefined ? world.cfg.baseCrit : 0.05) + md.crit) * 100) + '%</b> &nbsp; Daño crít.: <b>+' + Math.round(50 + md.critDmg * 100) + '%</b><br>Esquiva: <b>' + Math.round(dodge * 100) + '%</b> &nbsp; Evasión: <b>' + Math.round(md.eva) + '</b>';
   };
 
   /* ---------- Skill Inventory (K) ---------- */
-  var KW = makeWin('skill', 'skill_bg.png', 175, 289, X0 + 60, 70), ksig = '', klist, kjob, ksp;
+  var KW = makeWin('skill', 'skill_bg.png', 175, 289, X0 + 60, 70), ksig = '', klist, kjob, ksp, ktab = -1, ktabs = [];   // ktab: 0 = Beginner, 1..4 = 1er..4to job (-1 = elegir según el personaje)
   (function () {
-    var tb = el('div', 'mw-tab on'); tb.style.cssText += ';left:10px;width:30px'; var ti = el('img'); ti.src = A + 'sktab_on.png'; tb.appendChild(ti); KW.inn.appendChild(tb);
+    ['•', 'I', 'II', 'III', 'IV'].forEach(function (lb, i) {   // pestañas como en MapleStory: Beginner, 1er, 2do, 3er y 4to job
+      var tb = el('div', 'mw-tab', lb); tb.style.cssText += ';left:' + (9 + i * 31) + 'px;width:28px;font:bold 11px Tahoma,Arial;color:#fff'; tb.title = ['Beginner', '1er job', '2do job', '3er job', '4to job'][i];
+      tb.addEventListener('click', function () { ktab = i; KW.refresh(true); }); KW.inn.appendChild(tb); ktabs.push(tb);
+    });
     kjob = el('div'); kjob.style.cssText = 'position:absolute;left:44px;top:64px;font:bold 11px Tahoma,Arial;color:#fff;white-space:nowrap'; KW.inn.appendChild(kjob);
-    klist = el('div'); klist.style.cssText = 'position:absolute;left:8px;top:96px;width:150px;height:162px;overflow:hidden'; KW.inn.appendChild(klist);
+    klist = el('div'); klist.style.cssText = 'position:absolute;left:8px;top:96px;width:150px;height:162px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin'; klist.addEventListener('wheel', function (e) { e.stopPropagation(); }); KW.inn.appendChild(klist);
     ksp = el('div'); ksp.style.cssText = 'position:absolute;left:83px;top:267px;width:30px;height:12px;text-align:center;font:bold 11px Tahoma,Arial;line-height:12px;color:#222'; KW.inn.appendChild(ksp);
   })();
+  /* Tooltip de skill al estilo MapleStory: icono, [Master Level], descripción, skill requerida, [Current Level], [Next Level] y [Required] */
+  function skTip(sk, lv) {
+    var SK = window.MapleSkills, esc = function (t) { return String(t).replace(/</g, '&lt;'); };
+    function det(x) {
+      try {
+        var t = [];
+        if (sk.info) t.push(sk.info(x)); else if (sk.damage) t.push('Damage: ' + sk.damage(x) + '%' + (sk.attackCount > 1 ? ' x ' + sk.attackCount : '') + (sk.mobCount > 1 ? ', Max targets: ' + sk.mobCount : ''));
+        if (sk.mpCon && !sk.passiveSkill && sk.mpCon(x)) t.push('MP Cost: ' + sk.mpCon(x));
+        if (sk.buff && sk.duration && (!sk.info || sk.info(x).indexOf(' s') < 0)) t.push('Duration: ' + sk.duration(x) + ' s');
+        return t.join('<br>');
+      } catch (er) { return ''; }
+    }
+    var BF = window.MapleBuffs && window.MapleBuffs.BUFFS[sk.buff];
+    var desc = sk.desc || (sk.passiveSkill ? 'Skill pasiva: siempre activa.' : sk.buff ? (BF && BF.party ? 'Buff para todo el party del mapa.' : 'Buff propio.') + ' Con Auto se renueva sola.' : sk.teleportSkill ? 'Movimiento rápido; con Auto se usa para seguir al líder y subir plataformas.' : sk.debuff ? 'Debilita a los enemigos cercanos.' : sk.summon ? 'Invoca un aliado que ataca solo.' : 'Ataca a ' + (sk.mobCount > 1 ? 'hasta ' + sk.mobCount + ' enemigos' : 'un enemigo') + ' frente al personaje.');
+    var reqs = sk.req ? Object.keys(sk.req).filter(function (k) { return SK.SKILLS[k]; }) : [];
+    var reqTxt = reqs.map(function (k) { var ok = (world.skills[k] ? world.skills[k].level : 0) >= sk.req[k]; return '<span style="color:' + (ok ? '#9dff8a' : '#ffa64a') + '">Required Skill: ' + esc(SK.SKILLS[k].name) + ' Lv. ' + sk.req[k] + '</span>'; }).join('<br>');
+    var h = '<div style="width:236px"><div style="font:bold 12px Tahoma,Arial;color:#fff;padding-bottom:4px"><span style="color:#7fe3d0">&bull;</span> ' + esc(sk.name) + '</div>' +
+      '<div class="tt-row"><div class="tt-icon" style="width:44px;height:44px"><img style="width:32px;height:32px" src="' + sk.icon + '"></div><div style="font:11px Tahoma,Arial;color:#fff;flex:1">[Master Level: ' + sk.maxLevel + ']<br>' + esc(desc) + (reqTxt ? '<br>' + reqTxt : '') + '</div></div><div class="tt-sep"></div>';
+    if (lv > 0) h += '<div style="font:11px Tahoma,Arial">[Current Level ' + lv + ']<br>' + det(lv) + '</div>';
+    if (lv < sk.maxLevel) h += '<div style="font:11px Tahoma,Arial;margin-top:' + (lv > 0 ? 4 : 0) + 'px">[Next Level ' + (lv + 1) + ']<br>' + det(lv + 1) + '</div>';
+    if (reqs.length) h += '<div class="tt-sep"></div><div style="font:11px Tahoma,Arial">[Required]</div>' + reqs.map(function (k) { var q = SK.SKILLS[k]; return '<div style="display:flex;align-items:center;gap:6px;margin-top:3px"><img src="' + q.icon + '" style="width:28px;height:28px;image-rendering:pixelated"><div style="font:11px Tahoma,Arial">' + esc(q.name) + '<br>Level : ' + sk.req[k] + '</div></div>'; }).join('');
+    return h + '</div>';
+  }
   KW.refresh = function (force) {
     if (!KW.open) return;
-    var SK = window.MapleSkills, s = JSON.stringify([world.selected, world.skills, world.stats.level]);
+    var SK = window.MapleSkills, s = JSON.stringify([world.selected, world.skills, world.stats.level, world.chars[world.selected].branch, ktab]);
     if (!force && s === ksig) return; ksig = s;
-    klist.innerHTML = ''; var cl = world.chars[world.selected].cls; kjob.textContent = I.CLASSES[cl].label + ' · 1st job'; ksp.textContent = SK.spAvailable(world);
-    var mine = SK.ORDER.filter(function (id) { return !SK.SKILLS[id].cls || SK.SKILLS[id].cls === cl; });
-    if (!mine.length) { var ne = el('div', '', 'Esta clase aún no tiene skills (Haste y más vendrán pronto).'); ne.style.cssText = 'font:11px Tahoma,Arial;color:#567;padding:8px'; klist.appendChild(ne); }
+    klist.innerHTML = ''; var cl = world.chars[world.selected].cls; var chb = world.chars[world.selected].branch, jb = chb && window.MapleJobs && window.MapleJobs.get(chb); kjob.textContent = I.CLASSES[cl].label + (jb ? ' · ' + jb.name : ' · 1st job'); var tabNow = ktab < 0 ? (chb ? 2 : 1) : ktab; ksp.textContent = tabNow >= 1 ? SK.spAvailable(world, tabNow) : 0; ktabs.forEach(function (tb, i) { tb.className = 'mw-tab' + (i === tabNow ? ' on' : ''); });
+    var mine = SK.ORDER.filter(function (id) { var q = SK.SKILLS[id]; return (!q.cls || q.cls === cl) && SK.jobOf(q) === tabNow && (SK.jobOf(q) < 2 || (chb && q.branches && q.branches.indexOf(chb) >= 0)); });   // cada pestaña muestra los skills de su job (2do job: solo los de su rama)
+    if (!mine.length) { var ne = el('div', '', tabNow === 0 ? 'Sin skills de Beginner.' : tabNow === 2 && !chb ? 'Avanza de job a Lv30 (botón en Personajes, C) para ver los skills del 2do job.' : tabNow >= 3 ? 'Aún no disponible.' : 'Sin skills en esta pestaña.'); ne.style.cssText = 'font:11px Tahoma,Arial;color:#567;padding:8px'; klist.appendChild(ne); }
     mine.forEach(function (id, i) {
-      var sk = SK.SKILLS[id], st = world.skills[id], lv = st.level, row = el('div'), canUp = SK.spAvailable(world) >= 1 && lv < sk.maxLevel;
-      row.style.cssText = 'position:absolute;left:0;top:' + i * 35 + 'px;width:141px;height:35px;background:url(' + A + (i % 2 ? 'skill1' : 'skill0') + '.png)';
-      var ic = el('img'); ic.src = sk.icon; ic.draggable = false; ic.style.cssText = 'position:absolute;left:2px;top:2px;width:32px;height:32px;image-rendering:pixelated' + (lv ? '' : ';filter:grayscale(1) opacity(.55)'); row.appendChild(ic);
+      var sk = SK.SKILLS[id], st = world.skills[id], lv = st.level, off0 = !window.MapleSim.skillAllowed(world.chars[world.selected], sk), row = el('div'), canUp = SK.canLearn(world, id);
+      row.style.cssText = 'position:absolute;left:0;top:' + (i * 35) + 'px;width:141px;height:35px;background:url(' + A + (i % 2 ? 'skill1' : 'skill0') + '.png)';
+      var ic = el('img'); ic.src = sk.icon; ic.draggable = false; ic.style.cssText = 'position:absolute;left:2px;top:2px;width:32px;height:32px;image-rendering:pixelated' + (lv && !off0 ? '' : ';filter:grayscale(1) opacity(.55)'); row.appendChild(ic);
       var nm = el('div', '', sk.name); nm.style.cssText = 'position:absolute;left:38px;top:4px;font:bold 10px Tahoma,Arial;color:#222;white-space:nowrap'; row.appendChild(nm);
-      var lvl = el('div', '', 'Lv. ' + lv + ' / ' + sk.maxLevel); lvl.style.cssText = 'position:absolute;left:38px;top:17px;font:10px Tahoma,Arial;color:#444'; row.appendChild(lvl);
+      var off = !window.MapleSim.skillAllowed(world.chars[world.selected], sk), lvl = el('div', '', 'Lv. ' + lv + ' / ' + sk.maxLevel + (off ? ' (sin uso)' : '')); lvl.style.cssText = 'position:absolute;left:38px;top:17px;font:10px Tahoma,Arial;color:#444'; row.appendChild(lvl);
       var up = el('img'); up.src = A + 'spup_' + (canUp ? 'normal' : 'disabled') + '.png'; up.draggable = false; up.style.cssText = 'position:absolute;left:127px;top:5px;image-rendering:pixelated;cursor:' + (canUp ? 'pointer' : 'default'); row.appendChild(up);
       if (canUp) { up.addEventListener('mouseenter', function () { up.src = A + 'spup_mouseOver.png'; }); up.addEventListener('mouseleave', function () { up.src = A + 'spup_normal.png'; });
         up.addEventListener('click', function () { if (SK.learn(world, id)) { G.save(); ksig = ''; KW.refresh(); } }); }
       var lab = el('label'); lab.style.cssText = 'position:absolute;left:98px;top:21px;font:9px Tahoma,Arial;color:#335;cursor:pointer;white-space:nowrap'; var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!st.auto; cb.style.cssText = 'margin:0 2px 0 0;vertical-align:middle;width:9px;height:9px';
-      cb.addEventListener('change', function () { st.auto = cb.checked; G.save(); }); lab.appendChild(cb); lab.appendChild(document.createTextNode('Auto')); row.appendChild(lab);
-      row.addEventListener('mouseenter', function (e) { if (sk.buff) { showTip(e, '<b>' + sk.name + '</b> Lv. ' + lv + '<br>' + (lv > 0 ? 'Velocidad +' + Math.round(sk.speed(lv) * 100) + '% · ' + sk.duration(lv) + ' s · MP ' + sk.mpCon(lv) + '<br>' : '') + (lv < sk.maxLevel ? 'Siguiente: +' + Math.round(sk.speed(lv + 1) * 100) + '% · ' + sk.duration(lv + 1) + ' s · MP ' + sk.mpCon(lv + 1) + '<br>' : 'Nivel máximo<br>') + 'Buff para todo el party del mapa<br>Auto: la renueva sola antes de que expire (tecla H en manual)'); return; }
-      showTip(e, '<b>' + sk.name + '</b> Lv. ' + lv + '<br>' + (lv > 0 ? 'Daño ' + sk.damage(lv) + '%' + (sk.attackCount > 1 ? ' × ' + sk.attackCount + ' golpes' : '') + ' · MP ' + sk.mpCon(lv) + '<br>' : '') + (lv < sk.maxLevel ? 'Siguiente: ' + sk.damage(lv + 1) + '% · MP ' + sk.mpCon(lv + 1) + '<br>' : 'Nivel máximo<br>') + (sk.ranged ? sk.bulletCount + ' estrellas a 1 enemigo al frente (' + sk.range.x2 + ' px), cada una pega ' + (lv > 0 ? sk.damage(lv) : sk.damage(1)) + '%' : 'Hasta ' + sk.mobCount + ' enemigos al frente') + '<br>Auto: la usa sola al atacar (tecla X en manual)'); });
+      cb.addEventListener('change', function () { st.auto = cb.checked; G.save(); }); lab.appendChild(cb); lab.appendChild(document.createTextNode('Auto')); if (!sk.passiveSkill) row.appendChild(lab);   // las pasivas no llevan Auto
+      row.addEventListener('mouseenter', function (e) { showTip(e, skTip(sk, lv)); });
       row.addEventListener('mousemove', function (e) { showTip(e, tipEl.innerHTML); }); row.addEventListener('mouseleave', hideTip);
       klist.appendChild(row);
     });
+    klist.style.overflowY = 'auto';
   };
 
   /* ---------- Tienda (T) ---------- */
@@ -257,12 +288,18 @@
     var nt = el('div', '', 'Compra pociones con mesos y canjea scroll pieces por scrolls.'); nt.style.cssText = 'position:absolute;left:12px;top:42px;width:200px;font:11px Tahoma,Arial;color:#456;line-height:1.4'; H.appendChild(nt);
     hL = el('div'); hL.style.cssText = 'position:absolute;left:6px;top:127px;width:216px;height:200px;overflow-y:scroll;scrollbar-width:thin'; H.appendChild(hL);
     hR = el('div'); hR.style.cssText = 'position:absolute;left:238px;top:127px;width:216px;height:200px;overflow-y:scroll;scrollbar-width:thin'; H.appendChild(hR);
+    [hL, hR].forEach(function (v) {   // el fondo tiene la cuadrícula fija: el contenido se mueve de fila en fila (40 px)
+      var tm = null; function snap() { var t = Math.round(v.scrollTop / 40) * 40; if (Math.abs(t - v.scrollTop) > 0.5) v.scrollTop = t; }
+      v.addEventListener('scroll', function () { clearTimeout(tm); tm = setTimeout(snap, 90); });
+      v.addEventListener('wheel', function (e) { e.preventDefault(); e.stopPropagation(); v.scrollTop = Math.round(v.scrollTop / 40) * 40 + (e.deltaY > 0 ? 40 : -40); }, { passive: false });
+    });
+    var sa = el('div', '', 'Vender todo'); sa.style.cssText = 'position:absolute;left:338px;top:81px;width:112px;font:10px Tahoma,Arial;color:#345;text-align:right;cursor:pointer;text-decoration:underline'; sa.title = 'Vende todo lo de esta pestaña (clic derecho en un objeto = vender al instante)'; sa.addEventListener('click', sellAllTab); H.appendChild(sa);
     hmeso = el('div'); hmeso.style.cssText = 'position:absolute;left:366px;top:65px;width:82px;height:13px;text-align:right;font:bold 11px Tahoma,Arial;line-height:13px;color:#222'; H.appendChild(hmeso);
     hbuy = bt('btbuy', 140, 96, function () { doBuy(); }); hsell = bt('btsell', 372, 96, function () { doSell(); }); hbuy.style.left = '138px'; hsell.style.left = '370px'; hbuy.style.top = hsell.style.top = '97px';
     bt('btexit', 372, 40, function () { HW.set(false); }).style.top = '38px';
   })();
   var tabImgs = {};
-  function rowEl(parent, i, id, sub, onclick, selected, extra) {
+  function rowEl(parent, i, id, sub, onclick, selected, extra, onright) {
     var it = I.ITEMS[id], r = el('div'); r.style.cssText = 'position:absolute;left:0;top:' + i * 40 + 'px;width:210px;height:36px;cursor:pointer';
     if (selected) { var sl = el('img'); sl.src = A + 'shop_sel.png'; sl.style.cssText = 'position:absolute;left:37px;top:0;image-rendering:pixelated'; r.appendChild(sl); }
     var im = el('img'); im.src = ICON + id + '.png'; im.draggable = false; im.style.cssText = 'position:absolute;left:3px;top:2px;max-width:32px;max-height:32px;image-rendering:pixelated'; im.onerror = function () { im.remove(); r.insertAdjacentHTML('afterbegin', '<div style="position:absolute;left:3px;top:3px;width:30px;height:30px;background:#5a6b98;border-radius:3px"></div>'); };
@@ -270,12 +307,12 @@
     var nm = el('div', '', it.name); nm.style.cssText = 'position:absolute;left:46px;top:4px;width:160px;font:bold 11px Tahoma,Arial;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'; r.appendChild(nm);
     var sb = el('div', '', sub); sb.style.cssText = 'position:absolute;left:46px;top:19px;font:10px Tahoma,Arial;color:#345;white-space:nowrap'; r.appendChild(sb);
     if (extra) { var ex = el('div', '', extra); ex.style.cssText = 'position:absolute;right:6px;top:4px;font:bold 10px Arial;color:#fff;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000'; r.appendChild(ex); }
-    r.addEventListener('click', onclick); r.addEventListener('mouseenter', function (e) { showTip(e, tipOf(id)); }); r.addEventListener('mousemove', function (e) { showTip(e, tipOf(id)); }); r.addEventListener('mouseleave', hideTip); parent.appendChild(r);
+    r.addEventListener('click', onclick); if (onright) r.addEventListener('contextmenu', function (e) { e.preventDefault(); hideTip(); onright(); }); r.addEventListener('mouseenter', function (e) { showTip(e, tipOf(id)); }); r.addEventListener('mousemove', function (e) { showTip(e, tipOf(id)); }); r.addEventListener('mouseleave', hideTip); parent.appendChild(r);
   }
   function priceTxt(e) { return e.currency ? e.price + ' × ' + I.ITEMS[e.currency].name : fm(e.price) + ' mesos'; }
   function doBuy() {
     if (hsel === null) return toast('Elige un objeto de la lista de la izquierda');
-    var e = I.SHOP[hsel], it = I.ITEMS[e.id], have = e.currency ? I.countItem(world.inv, e.currency) : world.mesos, max = Math.min(99, Math.floor(have / e.price));
+    var e = I.SHOP[hsel], it = I.ITEMS[e.id], have = e.currency ? I.countItem(world.inv, e.currency) : world.mesos, max = Math.min(999, Math.floor(have / e.price));
     if (max < 1) return toast(e.currency ? 'No tienes suficientes ' + I.ITEMS[e.currency].name : 'No tienes suficientes mesos');
     askQty('Comprar ' + it.name + ' (' + priceTxt(e) + ' c/u)', max, function (n) {
       if (!I.canAdd(world.inv, e.id, n)) return toast('Inventario lleno');
@@ -292,6 +329,22 @@
     }
     if (cnt > 1) askQty('Vender ' + it.name + ' (' + it.sell + ' mesos c/u)', cnt, fin); else fin(1);
   }
+  // venta rápida (clic derecho): equipo = 1 pieza; objeto USE = toda la pila
+  function quickSell(r) {
+    var it = I.ITEMS[r.id], n = r.kind === 'equip' ? 1 : I.countItem(world.inv, r.id); if (!n) return;
+    if (r.kind === 'equip') world.inv.equip[r.idx] = null; else I.removeItem(world.inv, r.id, n);
+    world.mesos += (it.sell || 0) * n; toast('Vendido: ' + it.name + (n > 1 ? ' ×' + n : '') + '  +' + fm((it.sell || 0) * n) + ' mesos'); if (hrow && hrow.id === r.id) hrow = null; G.save(); hsig = ''; HW.refresh(); IW.refresh();
+  }
+  function sellAllTab() {
+    var items = [], total = 0;
+    if (htab === 'equip') world.inv.equip.forEach(function (id, idx) { if (id) items.push({ id: id, idx: idx, kind: 'equip' }); });
+    else world.inv.use.forEach(function (sl, idx) { if (sl && sl.id !== 'red_potion' && sl.id !== 'blue_potion' && !items.some(function (x) { return x.id === sl.id; })) items.push({ id: sl.id, idx: idx, kind: 'use' }); });
+    if (!items.length) return toast(htab === 'equip' ? 'No hay equipo para vender' : 'No hay objetos para vender (las pociones no se venden en bloque)');
+    items.forEach(function (r) { total += (I.ITEMS[r.id].sell || 0) * (r.kind === 'equip' ? 1 : I.countItem(world.inv, r.id)); });
+    if (!confirm('¿Vender TODO ' + (htab === 'equip' ? 'el equipo del inventario' : 'lo de la pestaña USE (menos pociones)') + ' por ' + fm(total) + ' mesos?')) return;
+    items.forEach(function (r) { if (r.kind === 'equip') world.inv.equip[r.idx] = null; else I.removeItem(world.inv, r.id, I.countItem(world.inv, r.id)); });
+    world.mesos += total; hrow = null; toast('Vendido todo: +' + fm(total) + ' mesos'); G.save(); hsig = ''; HW.refresh(); IW.refresh();
+  }
   HW.refresh = function (force) {
     if (!HW.open) return;
     var s = JSON.stringify([world.inv, world.mesos, hsel, hrow && hrow.id + hrow.idx, htab]);
@@ -301,7 +354,7 @@
     var list = [];
     if (htab === 'equip') world.inv.equip.forEach(function (id, idx) { if (id) list.push({ id: id, idx: idx, kind: 'equip' }); });
     else world.inv.use.forEach(function (sl, idx) { if (sl && !list.some(function (x) { return x.id === sl.id; })) list.push({ id: sl.id, idx: idx, kind: 'use' }); });
-    list.forEach(function (r, i) { rowEl(hR, i, r.id, (I.ITEMS[r.id].sell || 0) + ' mesos', function () { hrow = r; hsig = ''; HW.refresh(); }, hrow && hrow.id === r.id && hrow.idx === r.idx, r.kind === 'use' ? '×' + I.countItem(world.inv, r.id) : ''); });
+    list.forEach(function (r, i) { rowEl(hR, i, r.id, (I.ITEMS[r.id].sell || 0) + ' mesos', function () { hrow = r; hsig = ''; HW.refresh(); }, hrow && hrow.id === r.id && hrow.idx === r.idx, r.kind === 'use' ? '×' + I.countItem(world.inv, r.id) : '', function () { quickSell(r); }); });
     var h1 = el('div'); h1.style.cssText = 'height:' + Math.max(200, I.SHOP.length * 40) + 'px;width:1px'; hL.appendChild(h1);
     var h2 = el('div'); h2.style.cssText = 'height:' + Math.max(200, list.length * 40) + 'px;width:1px'; hR.appendChild(h2);
     hL.scrollTop = kl; hR.scrollTop = kr;
@@ -311,11 +364,50 @@
   };
 
   /* ---------- barra de botones y teclas ---------- */
-  var bar2 = el('div'); bar2.id = 'mc-bar'; document.body.appendChild(bar2);
-  function tb(txt, w) { var b = el('button', 'mi-btn', txt); b.addEventListener('click', function () { w.toggle(); }); return b; }
-  var oldBtns = [].slice.call(document.querySelectorAll('.wm-btn, .mi-btn'));
-  bar2.appendChild(tb('Equip (E)', EW)); bar2.appendChild(tb('Inventario (I)', IW)); bar2.appendChild(tb('Stat (S)', SW)); bar2.appendChild(tb('Skill (K)', KW)); bar2.appendChild(tb('Tienda (T)', HW));
-  oldBtns.sort(function (a, b) { return a.classList.contains('wm-btn') ? -1 : 1; }).forEach(function (b) { bar2.appendChild(b); });   // Mapa (M), Personaje (C)
+  /* ---------- menú hamburguesa (3x3 con iconos) ---------- */
+  var oldBtns = [].slice.call(document.querySelectorAll('.wm-btn, .mi-btn'));   // Mapa, Pociones y Personajes (sus módulos los crean): se ocultan y el menú los acciona
+  oldBtns.forEach(function (b) { b.style.display = 'none'; });
+  function oldBtn(re) { return oldBtns.filter(function (b) { return re.test(b.textContent); })[0]; }
+  var mcss = document.createElement('style');
+  mcss.textContent =
+    '#mc-hb{position:fixed;top:10px;right:10px;z-index:11;width:46px;height:46px;border:2px solid #cfd8ee;border-radius:5px;background:#16213f;cursor:pointer;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.6)}' +
+    '#mc-hb span{display:block;width:26px;height:3px;background:#fff;border-radius:1px}#mc-hb.on{background:#26376b}' +
+    '#mc-menu{position:fixed;top:64px;right:10px;z-index:11;display:none;flex-direction:column;gap:0;width:190px;padding:0;overflow:hidden;background:#0b1226;border:2px solid #5b7bb5;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.75)}' +
+    '#mc-menu.on{display:flex}#mc-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:5px 12px;background:transparent;border:0;border-bottom:1px solid #26365e;border-radius:0;color:#b9c4dc;cursor:pointer;font:bold 13px Tahoma,Arial;text-align:left}#mc-menu button:last-child{border-bottom:0}' +
+    '#mc-menu button:hover,#mc-menu button:active{background:#12315a;color:#fff}#mc-menu img{width:34px;height:34px;image-rendering:pixelated;pointer-events:none;flex:none}' +
+    '#mc-menu button.on{background:#0d4a7a;color:#fff}#mc-menu button i{margin-left:auto;font:normal 11px Tahoma,Arial;color:#6f7f9f}#mc-menu button hr{display:none}' +
+    '@media (max-width:700px){#mc-hb{width:52px;height:52px}#mc-menu{top:70px;width:min(250px,calc(100vw - 20px))}#mc-menu button{padding:9px 12px;font-size:15px}#mc-menu img{width:32px;height:32px}#mc-menu button i{display:none}}' +
+    '#mc-set{position:fixed;top:64px;right:10px;z-index:12;display:none;min-width:240px;padding:12px 14px;background:#f4f1e6;border:2px solid #6b7da8;border-radius:6px;font:12px Tahoma,Arial;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.6)}#mc-set.on{display:block}' +
+    '#mc-set h4{margin:0 0 8px;font-size:13px}#mc-set label{display:block;margin:6px 0;cursor:pointer}#mc-set button{margin-top:8px;padding:6px 12px;font:bold 12px Tahoma,Arial;border:1px solid #333;border-radius:4px;color:#fff;background:#c0392b;cursor:pointer}';
+  document.head.appendChild(mcss);
+  var hb = el('button'); hb.id = 'mc-hb'; hb.title = 'Menú'; hb.innerHTML = '<span></span><span></span><span></span>'; document.body.appendChild(hb);
+  var menu = el('div'); menu.id = 'mc-menu'; document.body.appendChild(menu);
+  var setp = el('div'); setp.id = 'mc-set'; document.body.appendChild(setp);
+  function menuOpen(v) { menu.classList.toggle('on', v); hb.classList.toggle('on', v); if (v) setp.classList.remove('on'); }
+  function setOpen(v) { setp.classList.toggle('on', v); if (v) menuOpen(false); }
+  function viaOld(re) { return function () { var b = oldBtn(re); if (b) b.click(); }; }
+  var ENTRIES = [['Personajes', 'char', viaOld(/Personajes/), 'C'], ['Inventario', 'items', function () { IW.toggle(); }, 'I'], ['Tienda', 'shop', function () { HW.toggle(); }, 'T'],
+    ['Equip', 'equips', function () { EW.toggle(); }, 'E'], ['Stat', 'stats', function () { SW.toggle(); }, 'S'], ['Skill', 'skills', function () { KW.toggle(); }, 'K'],
+    ['Mapa', 'maps', viaOld(/Mapa/), 'M'], ['Pociones', 'pots', viaOld(/Pociones/), 'P'], ['Ajustes', 'settings', function () { setOpen(true); }, '']];
+  ENTRIES.forEach(function (en) {
+    var b = el('button'); b.title = en[0]; var im = el('img'); im.src = 'assets/ui/menu/' + en[1] + '.png'; b.appendChild(im); b.appendChild(el('span', '', en[0])); if (en[3]) b.appendChild(el('i', '', en[3]));
+    b.addEventListener('click', function (e) { e.stopPropagation(); en[2](); if (en[0] !== 'Ajustes') menuOpen(false); }); menu.appendChild(b);
+  });
+  hb.addEventListener('click', function (e) { e.stopPropagation(); setp.classList.remove('on'); menuOpen(!menu.classList.contains('on')); });
+  document.addEventListener('pointerdown', function (e) { if (!menu.contains(e.target) && !hb.contains(e.target)) menuOpen(false); if (!setp.contains(e.target) && !hb.contains(e.target) && !menu.contains(e.target)) setp.classList.remove('on'); }, true);
+  // Esc: cierra primero el menú/ajustes y luego, de uno en uno, la ventana abierta más reciente (Mapa, Pociones, Personajes, Equip, Inventario, Stat, Skill, Tienda)
+  addEventListener('keydown', function (e) {
+    if (e.code !== 'Escape' || e.repeat || (G.zoneDrawing && G.zoneDrawing()) || resetOpen) return;
+    if (menu.classList.contains('on') || setp.classList.contains('on')) { menuOpen(false); setp.classList.remove('on'); return; }
+    var best = null, bt = -1;
+    [IW, EW, SW, KW, HW].forEach(function (W) { if (W.open && (W.t || 0) >= bt) { bt = W.t || 0; best = function () { W.set(false); }; } });
+    var P = window.MAPLE_PANELS || {}; Object.keys(P).forEach(function (k) { if (P[k].isOpen() && (P[k].t || 0) >= bt) { bt = P[k].t || 0; best = function () { P[k].close(); }; } });
+    if (best) best();
+  });
+  // Ajustes: zonas de farmeo y reinicio de partida
+  setp.appendChild(el('h4', '', 'Ajustes'));
+  var zl = el('label'), zc = document.createElement('input'); zc.type = 'checkbox'; zc.checked = G.showZones(); zc.addEventListener('change', function () { G.showZones(zc.checked); }); zl.appendChild(zc); zl.appendChild(document.createTextNode(' Mostrar zonas de farmeo')); setp.appendChild(zl);
+  var rb = el('button', '', 'Reiniciar partida…'); rb.addEventListener('click', function () { setp.classList.remove('on'); askReset(); }); setp.appendChild(rb);
   // Reiniciar partida: tecla | (a la izquierda del 1) -> ventana de confirmación
   var resetOpen = null;
   function askReset() {
@@ -327,7 +419,7 @@
     function btn(txt, bg) { var b = el('button', '', txt); b.style.cssText = 'margin:0 6px;padding:5px 22px;font:bold 12px Tahoma,Arial;border:1px solid #333;border-radius:4px;cursor:pointer;color:#fff;background:' + bg; return b; }
     var yes = btn('Sí', '#c0392b'), no = btn('No', '#4a6fa5');
     function close() { resetOpen = null; ov.remove(); removeEventListener('keydown', onKey, true); }
-    function onKey(e) { if (e.code === 'Escape' || e.code === 'KeyN') { e.preventDefault(); close(); } else if (e.code === 'Enter' || e.code === 'KeyY') { e.preventDefault(); G.reset(); } }
+    function onKey(e) { if (e.code === 'Escape' || e.code === 'KeyN') { e.preventDefault(); e.stopPropagation(); close(); } else if (e.code === 'Enter' || e.code === 'KeyY') { e.preventDefault(); G.reset(); } }
     yes.addEventListener('click', function () { G.reset(); }); no.addEventListener('click', close);
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
     bx.appendChild(t); bx.appendChild(d); bx.appendChild(yes); bx.appendChild(no); ov.appendChild(bx); document.body.appendChild(ov);
