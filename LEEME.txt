@@ -534,3 +534,10 @@ ETAPA 51b - Carga más rápida y sin errores de consola (game.js)
 ETAPA 51c - Archivos de skills inexistentes (game.js)
 - Los archivos que skills.js declara y no existen (p. ej. effect_0 de ht_arrow_bomb/ht_hawk/cb_hawk, mob_0..2 de ht_arrow_bomb/ht_hawk, ball_1/2 de as_gust_charm) se recuerdan en localStorage tras la primera carga y ya no se piden: la consola queda limpia desde la 2ª vez.
 - Si añades luego uno de esos archivos: abre el juego con ?nocache una vez (o sube ASSET_VER en game.js).
+
+ETAPA 52 - Interfaz móvil
+- Zoom con dos dedos (pellizco) en el mapa: escala alrededor del punto medio de los dedos; el arrastre con un dedo sigue moviendo la cámara. Rango de zoom 0.4x a 3x (también con la rueda).
+- Las ventanas con sprites (Inventario, Equip, Stat, Skill, Tienda) se reducen automáticamente para caber enteras en pantallas pequeñas (se recalcula al girar el teléfono). Antes la Tienda (463 px) se salía de la pantalla y no se veía su ✕.
+- Botón ✕ rojo flotante junto al botón del menú (sólo en móvil, y sólo si hay algo abierto): cierra primero menú/ajustes y después, una por una, la ventana o panel más reciente. Es la misma lógica que la tecla Esc.
+- Los paneles Mapa, Pociones y Personajes se salían 12 px por la izquierda (faltaba box-sizing:border-box); ahora quedan dentro de la pantalla.
+Archivos: mui.js, game.js, LEEME.txt

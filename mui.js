@@ -66,13 +66,19 @@
   // ventana arrastrable: w/h en px del sprite, bg = imagen de fondo
   function makeWin(id, bg, w, h, dx, dy) {
     var o = el('div', 'mw'), inn = el('div', 'mw-in'), img = el('img', 'mw-bg'); img.src = A + bg; img.draggable = false;
-    inn.style.width = w + 'px'; inn.style.height = h + 'px'; inn.style.transform = 'scale(' + SC + ')';
-    o.style.width = w * SC + 'px'; o.style.height = h * SC + 'px';
-    var p = pos[id] || { x: dx, y: dy }; o.style.left = Math.max(0, Math.min(innerWidth - w * SC - 4, p.x)) + 'px'; o.style.top = Math.max(0, Math.min(innerHeight - Math.min(h * SC, innerHeight - 4), p.y)) + 'px';
+    inn.style.width = w + 'px'; inn.style.height = h + 'px';
+    var p = pos[id] || { x: dx, y: dy }, W = { id: id, root: o, inn: inn, open: false, sc: SC };
+    // escala efectiva: en pantallas pequeñas la ventana se reduce para que quepa entera (así siempre se ve su ✕)
+    W.fit = function () {
+      W.sc = Math.min(SC, (innerWidth - 8) / w, (innerHeight - 8) / h);
+      inn.style.transform = 'scale(' + W.sc + ')'; o.style.width = w * W.sc + 'px'; o.style.height = h * W.sc + 'px';
+      o.style.left = Math.max(0, Math.min(innerWidth - w * W.sc - 4, o.offsetLeft || p.x)) + 'px'; o.style.top = Math.max(0, Math.min(innerHeight - h * W.sc - 4, o.offsetTop || p.y)) + 'px';
+    };
+    o.style.left = p.x + 'px'; o.style.top = p.y + 'px'; W.fit();
     inn.appendChild(img); o.appendChild(inn); document.body.appendChild(o);
     var drag = el('div', 'mw-drag'), x = el('div', 'mw-x', '×'); inn.appendChild(drag); inn.appendChild(x);
-    var W = { id: id, root: o, inn: inn, open: false };
-    W.set = function (v) { W.open = v; if (v) W.t = performance.now(); o.style.display = v ? 'block' : 'none'; if (v) { o.style.zIndex = ++z; W.refresh && W.refresh(true); } };
+    W.set = function (v) { W.open = v; if (v) W.t = performance.now(); o.style.display = v ? 'block' : 'none'; if (v) { W.fit(); o.style.zIndex = ++z; W.refresh && W.refresh(true); } };
+    addEventListener('resize', W.fit);
     W.toggle = function () { W.set(!W.open); };
     o.addEventListener('pointerdown', function () { o.style.zIndex = ++z; });
     x.addEventListener('click', function () { W.set(false); });
@@ -117,7 +123,7 @@
     IW.syncThumb = syncThumb;
     var td = null;
     thumb.addEventListener('pointerdown', function (e) { td = { y: e.clientY, s: view.scrollTop }; thumb.setPointerCapture(e.pointerId); });
-    thumb.addEventListener('pointermove', function (e) { if (!td) return; var max = view.scrollHeight - view.clientHeight, h = parseFloat(thumb.style.height); view.scrollTop = Math.round((td.s + (e.clientY - td.y) / SC * max / (202 - h)) / ROW) * ROW; });
+    thumb.addEventListener('pointermove', function (e) { if (!td) return; var max = view.scrollHeight - view.clientHeight, h = parseFloat(thumb.style.height); view.scrollTop = Math.round((td.s + (e.clientY - td.y) / IW.sc * max / (202 - h)) / ROW) * ROW; });
     thumb.addEventListener('pointerup', function () { td = null; });
     bar.addEventListener('pointerdown', function (e) { if (e.target === bar) { var r = bar.getBoundingClientRect(); view.scrollTop = Math.round(((e.clientY - r.top) / r.height * view.scrollHeight - view.clientHeight / 2) / ROW) * ROW; } });
   })();
@@ -374,9 +380,11 @@
     '#mc-hb span{display:block;width:26px;height:3px;background:#fff;border-radius:1px}#mc-hb.on{background:#26376b}' +
     '#mc-menu{position:fixed;top:64px;right:10px;z-index:11;display:none;flex-direction:column;gap:0;width:190px;padding:0;overflow:hidden;background:#0b1226;border:2px solid #5b7bb5;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.75)}' +
     '#mc-menu.on{display:flex}#mc-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:5px 12px;background:transparent;border:0;border-bottom:1px solid #26365e;border-radius:0;color:#b9c4dc;cursor:pointer;font:bold 13px Tahoma,Arial;text-align:left}#mc-menu button:last-child{border-bottom:0}' +
-    '#mc-menu button:hover,#mc-menu button:active{background:#12315a;color:#fff}#mc-menu img{width:34px;height:34px;image-rendering:pixelated;pointer-events:none;flex:none}' +
+    '#mc-menu button:hover,#mc-menu button:active{background:#12315a;color:#fff}#mc-menu img{width:26px;height:26px;image-rendering:pixelated;pointer-events:none;flex:none}' +
     '#mc-menu button.on{background:#0d4a7a;color:#fff}#mc-menu button i{margin-left:auto;font:normal 11px Tahoma,Arial;color:#6f7f9f}#mc-menu button hr{display:none}' +
-    '@media (max-width:700px){#mc-hb{width:52px;height:52px}#mc-menu{top:70px;width:min(250px,calc(100vw - 20px))}#mc-menu button{padding:9px 12px;font-size:15px}#mc-menu img{width:32px;height:32px}#mc-menu button i{display:none}}' +
+    '.wm-win,.mi-win{box-sizing:border-box}' +
+    '#mc-close{position:fixed;top:10px;right:68px;z-index:2147482500;display:none;width:46px;height:46px;border:2px solid #cfd8ee;border-radius:5px;background:#7a2430;color:#fff;font:bold 22px Arial;cursor:pointer;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.6)}' +
+    '@media (max-width:700px){#mc-close.on{display:block}#mc-close{width:52px;height:52px;right:72px}#mc-hb{width:52px;height:52px}#mc-menu{top:70px;width:min(250px,calc(100vw - 20px))}#mc-menu button{padding:9px 12px;font-size:15px}#mc-menu img{width:32px;height:32px}#mc-menu button i{display:none}}' +
     '#mc-set{position:fixed;top:64px;right:10px;z-index:12;display:none;min-width:240px;padding:12px 14px;background:#f4f1e6;border:2px solid #6b7da8;border-radius:6px;font:12px Tahoma,Arial;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.6)}#mc-set.on{display:block}' +
     '#mc-set h4{margin:0 0 8px;font-size:13px}#mc-set label{display:block;margin:6px 0;cursor:pointer}#mc-set button{margin-top:8px;padding:6px 12px;font:bold 12px Tahoma,Arial;border:1px solid #333;border-radius:4px;color:#fff;background:#c0392b;cursor:pointer}';
   document.head.appendChild(mcss);
@@ -396,14 +404,24 @@
   hb.addEventListener('click', function (e) { e.stopPropagation(); setp.classList.remove('on'); menuOpen(!menu.classList.contains('on')); });
   document.addEventListener('pointerdown', function (e) { if (!menu.contains(e.target) && !hb.contains(e.target)) menuOpen(false); if (!setp.contains(e.target) && !hb.contains(e.target) && !menu.contains(e.target)) setp.classList.remove('on'); }, true);
   // Esc: cierra primero el menú/ajustes y luego, de uno en uno, la ventana abierta más reciente (Mapa, Pociones, Personajes, Equip, Inventario, Stat, Skill, Tienda)
-  addEventListener('keydown', function (e) {
-    if (e.code !== 'Escape' || e.repeat || (G.zoneDrawing && G.zoneDrawing()) || resetOpen) return;
-    if (menu.classList.contains('on') || setp.classList.contains('on')) { menuOpen(false); setp.classList.remove('on'); return; }
+  // cierra lo último que se abrió: primero menú/ajustes, luego la ventana o panel más reciente; devuelve false si no había nada
+  function closeTop() {
+    if (menu.classList.contains('on') || setp.classList.contains('on')) { menuOpen(false); setp.classList.remove('on'); return true; }
     var best = null, bt = -1;
     [IW, EW, SW, KW, HW].forEach(function (W) { if (W.open && (W.t || 0) >= bt) { bt = W.t || 0; best = function () { W.set(false); }; } });
     var P = window.MAPLE_PANELS || {}; Object.keys(P).forEach(function (k) { if (P[k].isOpen() && (P[k].t || 0) >= bt) { bt = P[k].t || 0; best = function () { P[k].close(); }; } });
-    if (best) best();
+    if (best) { best(); return true; }
+    return false;
+  }
+  addEventListener('keydown', function (e) {
+    if (e.code !== 'Escape' || e.repeat || (G.zoneDrawing && G.zoneDrawing()) || resetOpen) return;
+    closeTop();
   });
+  // botón ✕ flotante (sólo móvil): cierra la ventana o panel abierto más reciente, junto al botón del menú
+  var cx = el('button', '', '✕'); cx.id = 'mc-close'; document.body.appendChild(cx);
+  cx.addEventListener('click', function (e) { e.stopPropagation(); closeTop(); });
+  function anyOpen() { var P = window.MAPLE_PANELS || {}; return [IW, EW, SW, KW, HW].some(function (W) { return W.open; }) || Object.keys(P).some(function (k) { return P[k].isOpen(); }); }
+  setInterval(function () { cx.classList.toggle('on', anyOpen()); }, 150);
   // Ajustes: zonas de farmeo y reinicio de partida
   setp.appendChild(el('h4', '', 'Ajustes'));
   var zl = el('label'), zc = document.createElement('input'); zc.type = 'checkbox'; zc.checked = G.showZones(); zc.addEventListener('change', function () { G.showZones(zc.checked); }); zl.appendChild(zc); zl.appendChild(document.createTextNode(' Mostrar zonas de farmeo')); setp.appendChild(zl);

@@ -521,7 +521,27 @@
     ctx.save(); ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; var tw = ctx.measureText(t).width + 30; ctx.fillStyle = 'rgba(10,14,30,.85)'; ctx.fillRect(cv.width / 2 - tw / 2, 70, tw, 30);
     ctx.fillStyle = '#ffe45c'; ctx.fillText(t, cv.width / 2, 91); ctx.restore();
   }
+  // zoom con dos dedos (pellizco): con dos punteros activos se cancela el arrastre de cámara y se escala el zoom alrededor del punto medio
+  var pts = {}, pinch = null;
+  function npts() { return Object.keys(pts).length; }
+  function pinchDist() { var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; }
+  function pinchMid() { var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]], r = cv.getBoundingClientRect(); return { x: ((a.x + b.x) / 2 - r.left) * (cv.width / r.width), y: ((a.y + b.y) / 2 - r.top) * (cv.height / r.height) }; }
   cv.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' || zdraw) return;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (npts() === 2) { pinch = { d0: pinchDist(), z0: zoom }; drag = null; cv.style.cursor = 'grab'; }
+  }, true);
+  cv.addEventListener('pointermove', function (e) {
+    if (!pts[e.pointerId]) return; pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (!pinch || npts() < 2) return;
+    var m = pinchMid(), wx = (m.x - cv.width / 2) / zoom + cam.x, wy = (m.y - cv.height / 2) / zoom + cam.y;
+    zoom = Math.max(0.4, Math.min(3, pinch.z0 * pinchDist() / pinch.d0));
+    cam.x = wx - (m.x - cv.width / 2) / zoom; cam.y = wy - (m.y - cv.height / 2) / zoom;
+  }, true);
+  function pinchEnd(e) { delete pts[e.pointerId]; if (npts() < 2) pinch = null; }
+  cv.addEventListener('pointerup', pinchEnd, true); cv.addEventListener('pointercancel', pinchEnd, true);
+  cv.addEventListener('pointerdown', function (e) {
+    if (pinch) return;
     if (zdraw) { var p0 = toWorld(e); zdraw.a = p0; zdraw.b = p0; zdraw.cx = e.clientX; zdraw.cy = e.clientY; zdraw.msg = ''; zdraw.id = e.pointerId; cv.setPointerCapture(e.pointerId); return; }
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0 }; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; });
   cv.addEventListener('pointermove', function (e) { if (zdraw && zdraw.a && zdraw.id === e.pointerId) { zdraw.cx = e.clientX; zdraw.cy = e.clientY; zdraw.b = toWorld(e); } });
@@ -532,7 +552,7 @@
   }
   cv.addEventListener('pointerup', zoneUp);
   cv.addEventListener('pointermove', function (e) {
-    if (!drag || drag.id !== e.pointerId) return;
+    if (pinch || !drag || drag.id !== e.pointerId) return;
     drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
     cam.x -= (e.clientX - drag.x) / zoom; cam.y -= (e.clientY - drag.y) / zoom;
     drag.x = e.clientX; drag.y = e.clientY;
@@ -648,7 +668,7 @@
     }
   });
   addEventListener('keyup', function (e) { keys[e.code] = false; });
-  addEventListener('wheel', function (e) { zoom = Math.max(0.5, Math.min(2, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); });
+  addEventListener('wheel', function (e) { zoom = Math.max(0.4, Math.min(3, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); });
   function resize() { cv.width = innerWidth; cv.height = innerHeight; }
   addEventListener('resize', resize); resize();
 
