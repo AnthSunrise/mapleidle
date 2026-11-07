@@ -551,3 +551,11 @@ ETAPA 52c - Inventario táctil y zona de farmeo sin interfaz (mui.js, game.js)
 - Al asignar una zona de farmeo se oculta TODA la interfaz (menú, ventanas, lista de personajes, barras HP/MP) y aparece un botón "Cancelar zona" arriba a la derecha (en móvil no hay Esc). Al terminar la zona o cancelar, la interfaz vuelve.
 - Texto de ayuda de la zona más corto en pantallas estrechas.
 Archivos: mui.js, game.js, LEEME.txt
+
+ETAPA 52d - Diagnóstico de la IA (game.js)
+- Con D (debug) aparece una línea nueva: "IA: estado  plan=<tipo→nodo xN>  nodo=  objetivo=  giros/s=" del personaje seleccionado (giros/s = cuántas veces cambia de dirección por segundo; el bamboleo daría un número alto, p. ej. 30-60).
+
+ETAPA 53 - Fin del vaivén izquierda/derecha (sim.js)
+- Causa: con zona de farmeo, si había dos enemigos casi a la misma distancia en plataformas distintas (p. ej. uno en una plataforma y otro en otra, ambos a un Teleport/salto), el personaje cambiaba de objetivo CADA FRAME, y daba un paso hacia cada lado alternando.
+- Arreglo: la IA mantiene su objetivo anterior mientras siga vivo y alcanzable, salvo que otro esté claramente mejor (un salto menos, o mucho más cerca, o élite/jefe).
+- Nuevo test: test_flicker.js (reproduce el caso de Ramidus con tu zona en Golem Temple).

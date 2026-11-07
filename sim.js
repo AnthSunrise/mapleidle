@@ -1370,14 +1370,19 @@
       if (!idle && (lq.node !== p.node || Math.abs(lq.x - p.x) > 260)) { t = { x: lq.x + (w.chars.indexOf(w.cur) - w.chars.indexOf(lead)) * 22, y: lq.y, node: lq.node }; idle = true; }
     }
     var help = !!w.cur.helpBoss;
+    var lastS = Infinity;
     if (!follow) w.mobs.forEach(function (m) {
       if (!alive(m) || m === a.avoid) return;
       if (zn && !inZone(zn, m.x, m.y) && !(help && m.boss)) return;   // con zona asignada solo busca enemigos dentro del cuadro (salvo el jefe si "ayudar jefes" está activo)
       var d = r.dist[m.node.i]; if (d === Infinity) return;
       var s = d * 10000 + Math.abs(m.x - p.x);
       if (m.boss && help) s -= 2e9; else if (m.elite) s -= 1e9;   // prioridad: jefe (si ayuda) > élite > resto
+      if (m === a.last) lastS = s;
       if (s < best) { best = s; t = m; }
     });
+    // histéresis: se mantiene el objetivo anterior salvo que otro esté claramente mejor (un salto menos o mucho más cerca); evita el vaivén entre dos enemigos casi equidistantes
+    if (t && a.last && t !== a.last && lastS < Infinity && best > lastS - 4000) t = a.last;
+    a.last = t && !idle ? t : (t ? a.last : null);
     if (!t && zn && !follow) {
       // sin enemigos en la zona: defenderse de uno pegado fuera del cuadro, o volver al centro de la zona y esperar
       w.mobs.forEach(function (m) { if (alive(m) && m.node === p.node && Math.abs(m.x - p.x) < 70 && Math.abs(m.x - p.x) < best) { best = Math.abs(m.x - p.x); t = m; } });

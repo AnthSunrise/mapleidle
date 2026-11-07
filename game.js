@@ -491,6 +491,7 @@
   cv.addEventListener('pointermove', function (e) { mouse.x = e.clientX; mouse.y = e.clientY; mouse.in = true; });
   cv.addEventListener('pointerleave', function () { mouse.in = false; });
   // ---- zonas de farmeo: modo dibujo (arrastrar un cuadro sobre el mapa para el personaje elegido) ----
+  var dbgFlip = null;
   var zdraw = null, showZones = true, ZCOL = ['#ffe45c', '#5cf0ff', '#ff7ad9', '#8dff6a', '#ffa14d', '#b08cff'];
   function toWorld(e) { var r = cv.getBoundingClientRect(), sx = (e.clientX - r.left) * (cv.width / r.width), sy = (e.clientY - r.top) * (cv.height / r.height); return { x: (sx - cv.width / 2) / zoom + cam.x, y: (sy - cv.height / 2) / zoom + cam.y }; }
   // mientras se dibuja la zona se oculta toda la interfaz (clase zone-draw, ver mui.js) y queda un botón para cancelar (en móvil no hay Esc)
@@ -641,6 +642,13 @@
     if (debug) {
       lines.push('Offset mapa: x=' + off.x + ' y=' + off.y + '  (I/J/K/L mueven 1px, con Shift 10px)');
       lines.push('Personaje: ' + dbgText(dbgPlayer()) + '   [B = copiar]');
+      (function () {   // diagnóstico de la IA: estado, plan (arista) y objetivo del personaje seleccionado, y cuántas veces cambia de dirección por segundo
+        var P = world.player, A = world.ai || {}, e = A.edge, t = A.target, now = performance.now();
+        dbgFlip = dbgFlip || { d: P.dir, n: 0, t0: now, rate: 0 };
+        if (P.dir !== dbgFlip.d) { dbgFlip.d = P.dir; dbgFlip.n++; }
+        if (now - dbgFlip.t0 > 1000) { dbgFlip.rate = dbgFlip.n; dbgFlip.n = 0; dbgFlip.t0 = now; }
+        lines.push('IA: ' + P.state + (P.atk ? '+atk' : '') + (P.dropT > 0 ? '+prone' : '') + '  plan=' + (e ? e.type + '→n' + e.to + (e.takeoffX !== undefined ? ' x' + Math.round(e.takeoffX) : '') : (t ? 'objetivo' : 'idle')) + '  nodo=n' + (P.node ? P.node.i : '?') + '  objetivo=' + (t ? 'n' + (t.node ? t.node.i : '?') + ' x' + Math.round(t.x) : '-') + '  giros/s=' + dbgFlip.rate);
+      })();
       if (mouse.in) lines.push('Cursor: ' + dbgText(dbgCursor()) + '   [N = copiar]');
     }
     if (!debug) { lines = speed > 1 ? ['Velocidad x' + speed] : []; if (!world.ai.auto) lines.push('MANUAL (A para volver a auto)'); }   // el texto de ayuda/debug solo se muestra con D
