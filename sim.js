@@ -3,7 +3,7 @@
   'use strict';
 
   var C = {
-    WALK: 140, JUMP_V: -600, G: 1800, DROP_MAX: 350, DROP_PRONE: 0.22, DROP_HOP: -170, CLIMB: 90,
+    WALK: 140, JUMP_V: -600, G: 1800, DROP_MAX: 350, DROP_PRONE: 0.22, DROP_HOP: -170, DASH_WIND: 0.12, DASH_DUR: 0.24, CLIMB: 90,
     MOB_SPEED: 26, MOB_HP: 14, RESPAWN: 6,
     ATK_NEAR: 50, HIT_RANGE: 85, HIT_H: 45,
     STEP: 1 / 60
@@ -92,6 +92,7 @@
     while (s.level < MAX_LEVEL && s.exp >= expToNext(s.level)) {
       s.exp -= expToNext(s.level); s.level++;
       s.maxHp = maxHpOf(ch); s.hp = s.maxHp; s.maxMp = maxMpOf(ch); s.mp = s.maxMp;   // al subir de nivel se recupera HP y MP
+      if (ch.mapId === w.mapId && ch.player) beFx(w, 'LevelUp', { x: ch.player.x, y: ch.player.y, follow: ch.player });
       w.texts.push({ x: ch.player.x, y: ch.player.y - 90, txt: 'LEVEL UP!  Lv. ' + s.level, c: '#ffe45c', big: true, life: 1.8, t: 0 });
     }
     if (s.level >= MAX_LEVEL) s.exp = 0;
@@ -300,6 +301,7 @@
   function advanceJob(w, c, id) {
     var J = root.MapleJobs; if (!advanceCheck(w, c, id).ok) return false;
     c.branch = id; var b = J.get(id), MI = root.MapleItems;
+    if (c.mapId === w.mapId && c.player) beFx(w, 'JobChanged', { x: c.player.x, y: c.player.y, follow: c.player });
     J.gifts(b).forEach(function (g) { if (MI && MI.ITEMS && MI.ITEMS[g]) MI.addItem(w.inv, g, 1); });
     
     // Auto-aprender Assassin's Mark al avanzar de clase
@@ -1187,7 +1189,20 @@
       }
     }
 
-    if (p.state === 'ground') {
+    if (p.mv && (p.mv.k === 'dash' ? p.state !== 'ground' || p.atk : p.state !== 'air')) p.mv = null;
+    if (p.mv && p.mv.k === 'dash') {
+      // Warrior Leap / Soul Rush: agachado un instante y luego empujón por el suelo
+      var dm = p.mv; dm.t += dt; p.vx = 0; p.moving = false; p.dir = dm.dir;
+      if (dm.t >= dm.wind) {
+        var dnx = p.x + dm.dir * dm.v * dt; p.moving = true;
+        if (dnx < p.node.minX || dnx > p.node.maxX) {
+          if (map.below(dnx, p.y, 3)) { p.x = dnx; p.state = 'air'; p.vy = 0; p.mv = null; }
+          else { p.x = clamp(dnx, p.node.minX, p.node.maxX); p.mv = null; }
+        } else p.x = dnx;
+        if (p.state === 'ground') p.y = map.yAt(p.node, p.x);
+        if (p.mv && dm.t >= dm.wind + dm.dur) p.mv = null;
+      }
+    } else if (p.state === 'ground') {
       if (!p.atk) {
         var dropB = inp.down && inp.jump && !(p.dropT > 0) ? map.below(p.x, p.y, 6) : null;
         if (p.dropT > 0) {
@@ -1225,7 +1240,9 @@
         }
       }
     } else if (p.state === 'air') {
-      p.vx = mv * spd(w); if (mv) p.dir = mv;
+      if (p.mv && p.mv.k === 'flash') {   // Flash Jump: impulso horizontal fijo mientras dura
+        var fm = p.mv; fm.t += dt; p.dir = fm.dir; p.vx = fm.dir * fm.v; if (fm.t >= fm.dur) p.mv = null;
+      } else { p.vx = mv * spd(w); if (mv) p.dir = mv; }
       p.vy += C.G * dt;
       var oy = p.y;
       p.x = clamp(p.x + p.vx * dt, map.minX, map.maxX);
@@ -1276,15 +1293,59 @@
 
   /* ---------- IA idle: busca el enemigo más cercano (incluso en otro piso) y lo ataca ---------- */
   // Teleport (Mage) como medio de transporte: aristas extra del grafo (a plataformas dentro de dist px en horizontal y vert px en vertical, arriba o abajo)
+  // tipo de movimiento: 'tele' (instantáneo, Mage), 'dash' (empujón desde el suelo, Warrior Leap/Soul Rush), 'flash' (salto + impulso en el aire), 'wings' (vuelo vertical a la plataforma de arriba)
+  function moveKind(sk) { return sk.move || (sk.vertical ? 'wings' : /FlashJump/.test(sk.id) ? 'flash' : /WarriorLeap/.test(sk.id) ? 'dash' : 'tele'); }
   function teleSkill(w) {
-    var SK = root.MapleSkills; if (!SK) return null;   // Teleport (Mage) o Warrior Leap: la primera skill de movimiento aprendida, en auto y permitida
-    for (var i = 0; i < SK.ORDER.length; i++) { var sk = SK.SKILLS[SK.ORDER[i]], st = w.skills[sk.id]; if (sk.teleportSkill && st && st.level >= 1 && st.auto && skillAllowed(w.cur, sk)) return { sk: sk, lv: st.level }; }
+    var SK = root.MapleSkills; if (!SK) return null;   // la primera skill de movimiento aprendida, en auto y permitida
+    for (var i = 0; i < SK.ORDER.length; i++) { var sk = SK.SKILLS[SK.ORDER[i]], st = w.skills[sk.id]; if (sk.teleportSkill && st && st.level >= 1 && st.auto && skillAllowed(w.cur, sk)) return { sk: sk, lv: st.level, kind: moveKind(sk) }; }
+    return null;
+  }
+  // MP suficiente y fuera de enfriamiento (reserve: deja un 20% de MP para las skills de ataque)
+  function mvReady(w, ts, reserve) {
+    var c = w.cur; return w.stats.mp >= ts.sk.mpCon(ts.lv) + (reserve ? w.stats.maxMp * 0.2 : 0) && !(c.tpT !== undefined && w.t - c.tpT < ts.sk.cooldown);
+  }
+  function fjParams(ts) { var dur = ts.sk.fjDur || 0.25, reach = ts.sk.dist(ts.lv); return { dur: dur, lift: ts.sk.fjLift || -300, reach: reach, v: reach / dur }; }
+  function beFx(w, name, o) {   // animación de BasicEff.img
+    var B = root.MapleBasicFx && root.MapleBasicFx[name], ms = 0, rate = (o && o.rate) || 1, f = { kind: 'be', name: name, t: 0, rate: rate };
+    if (B) B.frames.forEach(function (fr) { ms += fr[2]; }); else ms = 800;
+    f.life = ms / rate / 1000; for (var k in o) f[k] = o[k]; if (o && o.delay) { f.t = -o.delay; f.life += o.delay; } w.fx.push(f); return f;
+  }
+  // vuelo del Flash Jump (misma física que el motor): salta, al llegar casi al punto más alto da el impulso y después se dirige a tx. Devuelve el aterrizaje o null
+  function flashFly(w, ts, node, xa, dir, tx) {
+    var map = w.map, F = fjParams(ts), x = xa, y = map.yAt(node, xa), vy = C.JUMP_V, s = spd(w), dt = C.STEP, flashed = false, ft = 0;
+    for (var n = 0; n < 150; n++) {
+      if (!flashed && vy >= -60) { flashed = true; vy = Math.min(vy, F.lift); }
+      var vx = !flashed ? dir * s : ft < F.dur ? dir * F.v : (Math.abs(tx - x) > 3 ? (tx > x ? s : -s) : 0);
+      if (flashed && ft < F.dur) ft += dt;
+      vy += C.G * dt; var oy = y; x = clamp(x + vx * dt, map.minX, map.maxX); y += vy * dt;
+      if (vy > 0) { var l = map.landing(x, oy, y); if (l) return l; }
+    }
     return null;
   }
   function teleEdges(w) {
-    var ts = teleSkill(w); if (!ts) return null;
+    var ts = teleSkill(w); if (!ts || ts.kind === 'dash') return null;
     var c = w.cur, key = w.mapId + '|' + ts.sk.id + ts.lv; if (c._te && c._te.key === key) return c._te.edges;
     var map = w.map, dist = ts.sk.dist(ts.lv), vert = ts.sk.vert(ts.lv), edges = map.nodes.map(function () { return []; });
+    if (ts.kind === 'flash') {
+      var reach = fjParams(ts).reach;
+      map.nodes.forEach(function (A) {
+        map.nodes.forEach(function (B) {
+          if (A === B || A.maxX + reach + 160 < B.minX || B.maxX + reach + 160 < A.minX) return;
+          if (map.edges[A.i].some(function (e) { return e.to === B.i && e.type !== 'fall' && e.type !== 'drop'; })) return;   // ya se llega con un salto normal
+          var m = (B.maxX - B.minX) >= 40 ? 16 : (B.maxX - B.minX) / 2, best = null;
+          for (var xa = A.minX; xa <= A.maxX + 0.01; xa += 20) {
+            [-1, 1].forEach(function (dir) {
+              [40, 100, 160, 230].forEach(function (d) {
+                var tx = clamp(xa + dir * d, B.minX + m, B.maxX - m), l = flashFly(w, ts, A, xa, dir, tx);
+                if (l && l.node === B) { var sc = Math.abs(tx - xa); if (!best || sc < best.sc) best = { sc: sc, xa: xa, xb: tx, dir: dir }; }
+              });
+            });
+          }
+          if (best) edges[A.i].push({ type: 'tele', to: B.i, takeoffX: best.xa, landX: best.xb, dir: best.dir });
+        });
+      });
+      c._te = { key: key, edges: edges }; return edges;
+    }
     map.nodes.forEach(function (A) {
       map.nodes.forEach(function (B) {
         if (A === B || A.maxX + dist < B.minX || B.maxX + dist < A.minX) return;
@@ -1292,58 +1353,90 @@
         for (var xa = A.minX; xa <= A.maxX + 0.01; xa += 20) {
           var xb = clamp(xa, B.minX + m, B.maxX - m), dxx = Math.abs(xa - xb), dy = map.yAt(A, xa) - map.yAt(B, xb);
           if (dxx > dist || Math.abs(dy) > vert || Math.abs(dy) < 20 && dxx < 10) continue;
+          if (ts.kind === 'wings' && dy <= 20) continue;   // Wings: solo hacia la plataforma de arriba
           var sc = dxx + Math.abs(xb - cB) * 0.001;
           if (!best || sc < best.sc) best = { sc: sc, xa: xa, xb: xb };
         }
-                if (best) {
-          if (ts.sk.vertical) {
-            // Wings: solo permite saltar hacia arriba (dy > 0) y sin desplazamiento horizontal
-            var dy = map.yAt(A, best.xa) - map.yAt(B, best.xb);
-            if (dy > 0 && Math.abs(best.xa - best.xb) < 4) edges[A.i].push({ type: 'tele', to: B.i, takeoffX: best.xa, landX: best.xb, dir: 0 });
-          } else {
-            edges[A.i].push({ type: 'tele', to: B.i, takeoffX: best.xa, landX: best.xb, dir: sign(best.xb - best.xa) });
-          }
-        }
+        if (best) edges[A.i].push({ type: 'tele', to: B.i, takeoffX: best.xa, landX: best.xb, dir: sign(best.xb - best.xa) });
       });
     });
     c._te = { key: key, edges: edges }; return edges;
   }
-    // ejecuta el teletransporte / salto vertical (devuelve true si se hizo)
+  function payMove(w, ts) { var c = w.cur; w.stats.mp -= ts.sk.mpCon(ts.lv); c.tpT = w.t; }
+  // Teleport: instantáneo, con la animación de BasicEff
   function doTeleport(w, x, node) {
-    var ts = teleSkill(w), p = w.player, c = w.cur; if (!ts) return false;
-    if (p.state !== 'ground' || p.atk || w.stats.mp < ts.sk.mpCon(ts.lv) || (c.tpT !== undefined && w.t - c.tpT < ts.sk.cooldown)) return false;
-    w.stats.mp -= ts.sk.mpCon(ts.lv); c.tpT = w.t; var fk = ts.sk.leap ? 'leap' : 'tele'; w.fx.push({ kind: fk, x: p.x, y: p.y - 30, t: 0 });
-    if (ts.sk.vertical) {
-      p.node = node; p.y = w.map.yAt(node, x); p.vx = p.vy = 0; p.state = 'ground'; p.ladder = null;
-    } else {
-      p.dir = x >= p.x ? 1 : -1; p.node = node; p.x = x; p.y = w.map.yAt(node, x); p.vx = p.vy = 0; p.state = 'ground'; p.ladder = null;
-    }
-    w.fx.push({ kind: fk, x: p.x, y: p.y - 30, t: 0 }); return true;
+    var ts = teleSkill(w), p = w.player; if (!ts || ts.kind !== 'tele') return false;
+    if (p.state !== 'ground' || p.atk || p.mv || !mvReady(w, ts, false)) return false;
+    payMove(w, ts); beFx(w, 'Teleport', { x: p.x, y: p.y, dir: p.dir });
+    p.dir = x >= p.x ? 1 : -1; p.node = node; p.x = x; p.y = w.map.yAt(node, x); p.vx = p.vy = 0; p.state = 'ground'; p.ladder = null;
+    beFx(w, 'Teleport', { x: p.x, y: p.y, dir: p.dir }); return true;
   }
-
-  // Teleport sobre la misma plataforma: avanza hacia un enemigo lejano
-  function tryTeleport(w, dx) {
-    var ts = teleSkill(w), sk = ts && ts.sk, st = ts && { level: ts.lv }, p = w.player, c = w.cur;
-    if (!ts || p.state !== 'ground' || p.atk || w.stats.mp < sk.mpCon(st.level) || (c.tpT !== undefined && w.t - c.tpT < sk.cooldown)) return false;
-    var dir = dx >= 0 ? 1 : -1, dist = Math.min(sk.dist(st.level), Math.abs(dx) - 90); if (dist < 40) return false;
-    var nx = clamp(p.x + dir * dist, p.node.minX + 10, p.node.maxX - 10); return doTeleport(w, nx, p.node);
+  // Warrior Leap / Soul Rush: se agacha un instante y sale empujado por el suelo hacia el frente
+  function doDash(w, dir, dist) {
+    var ts = teleSkill(w), p = w.player; if (!ts || ts.kind !== 'dash') return false;
+    if (p.state !== 'ground' || p.atk || p.mv || !mvReady(w, ts, false)) return false;
+    payMove(w, ts); p.dir = dir; p.moving = false;
+    p.mv = { k: 'dash', t: 0, wind: C.DASH_WIND, dur: C.DASH_DUR, dir: dir, v: dist / C.DASH_DUR };
+    beFx(w, 'SoulRush', { x: p.x, y: p.y, dir: dir, rate: 1.6, delay: C.DASH_WIND }); return true;
   }
+  // Flash Jump: en el aire (tras saltar), cerca del punto más alto
+  function doFlash(w, dir) {
+    var ts = teleSkill(w), p = w.player; if (!ts || ts.kind !== 'flash') return false;
+    if (p.state !== 'air' || p.mv || !mvReady(w, ts, false)) return false;
+    var F = fjParams(ts); payMove(w, ts); p.dir = dir; p.vy = Math.min(p.vy, F.lift); p.mv = { k: 'flash', t: 0, dur: F.dur, dir: dir, v: F.v };
+    var sk = ts.sk;
+    if (sk.cls === 'thief') beFx(w, 'Flying', { x: p.x, y: p.y, dir: dir, follow: p, rate: 1.6 });
+    else if (sk.effect) w.fx.push({ kind: 'effect', id: sk.id, life: sk.effect.length * (sk.effectDelay || 90) / 1000, x: p.x, y: p.y, dir: dir, t: 0, follow: p });
+    return true;
+  }
+  // Wings: sube volando hasta la plataforma de arriba
+  function doWings(w, e) {
+    var ts = teleSkill(w), p = w.player; if (!ts || ts.kind !== 'wings') return false;
+    if (p.state !== 'ground' || p.atk || !mvReady(w, ts, false)) return false;
+    var B = w.map.nodes[e.to], dy = p.y - w.map.yAt(B, e.landX); if (dy <= 0) return false;
+    payMove(w, ts); p.state = 'air'; p.ladder = null; p.vx = 0; p.vy = -Math.sqrt(2 * C.G * (dy + 34));
+    var sk = ts.sk; if (sk.effect) w.fx.push({ kind: 'effect', id: sk.id, life: sk.effect.length * (sk.effectDelay || 90) / 1000, x: p.x, y: p.y, dir: p.dir, t: 0, follow: p });
+    return true;
+  }
+  // salta e iniciará el Flash Jump al llegar arriba (la IA lo termina en el aire)
+  function startFlash(w, dir, tx) {
+    var ts = teleSkill(w), a = w.ai, inp = w.input, p = w.player; if (!ts || ts.kind !== 'flash' || p.state !== 'ground' || p.atk || !mvReady(w, ts, false)) return false;
+    a.fj = { dir: dir || 1, tx: tx }; inp.jump = true; inp.left = inp.right = false; if (a.fj.dir > 0) inp.right = true; else inp.left = true; return true;
+  }
+  // avanzar en el suelo hacia dx px (con signo) usando la skill de movimiento, dejando "margin" px para andar. true si se inició
+  function boost(w, dx, margin) {
+    var ts = teleSkill(w), p = w.player; if (!ts || ts.kind === 'wings' || p.state !== 'ground' || p.atk || p.mv) return false;
+    if (!mvReady(w, ts, true)) return false;
+    var dir = dx >= 0 ? 1 : -1, ad = Math.abs(dx) - (margin || 0);
+    if (ts.kind === 'tele') { var d1 = Math.min(ts.sk.dist(ts.lv), ad); if (d1 < 60) return false; return doTeleport(w, clamp(p.x + dir * d1, p.node.minX + 10, p.node.maxX - 10), p.node); }
+    if (ts.kind === 'dash') { var d2 = Math.min(ts.sk.dist(ts.lv), ad); if (d2 < 70) return false; return doDash(w, dir, d2); }
+    var R = fjParams(ts).reach;   // flash: el salto + impulso recorre ~R+90 px; no se usa si se pasaría del borde de la plataforma
+    if (ad < R * 0.5 + 90 || p.x + dir * (R + 60) > p.node.maxX - 8 || p.x + dir * (R + 60) < p.node.minX + 8) return false;
+    return startFlash(w, dir, p.x + dir * ad);
+  }
+  function tryTeleport(w, dx) { return boost(w, dx, 90); }
   function stepAI(w, dt) {
     var p = w.player, inp = w.input, a = w.ai, map = w.map;
     inp.left = inp.right = inp.up = inp.down = inp.jump = inp.attack = inp.skill = false;
     var walkTo = function (x, tol) {
       var d = x - p.x;
       if (Math.abs(d) <= tol) return true;
+      if (p.state === 'ground' && Math.abs(d) > 110 && boost(w, d, tol + 4)) return false;   // skill de movimiento: se usa constantemente al desplazarse
       if (d > 0) inp.right = true; else inp.left = true;
       return false;
     };
+    if (p.mv && p.mv.k === 'dash') return;   // empujón en curso
     if (a.avoidT > 0) { a.avoidT -= dt; if (a.avoidT <= 0) a.avoid = null; }
     if (p.atk) return;
 
     var e = a.edge;
     if (p.state === 'air') {
-      if (!e) return;
-      if (e.type === 'jump') walkTo(e.landX, 3);
+      if (a.fj) {   // Flash Jump: tras saltar, impulso al llegar casi arriba
+        if (!p.mv && p.vy >= -60) { doFlash(w, a.fj.dir); a.fjTx = a.fj.tx; a.fj = null; }
+        else { if (a.fj.dir > 0) inp.right = true; else inp.left = true; return; }
+      }
+      if (!e) { if (a.fjTx !== undefined) walkTo(a.fjTx, 6); return; }
+      if (e.type === 'jump' || e.type === 'tele') walkTo(e.landX, 3);
       else if (e.type === 'climb' && e.dir === 'up') inp.up = true;
       else if (e.type === 'fall' && Math.abs(p.x - e.exitX) < 6) { if (e.dir > 0) inp.right = true; else inp.left = true; }
       return;
@@ -1357,8 +1450,11 @@
     }
 
     // en el suelo: primero renovar buffs del party, luego elegir objetivo
+    a.fj = null; a.fjTx = undefined;
+    var ts0 = teleSkill(w);   // sin MP no se planifican rutas con la skill de movimiento (histéresis para no oscilar)
+    if (ts0) { var mc0 = ts0.sk.mpCon(ts0.lv); if (w.stats.mp < mc0) a.mvOff = true; else if (w.stats.mp >= mc0 * 2) a.mvOff = false; } else a.mvOff = false;
     if (p.cd <= 0) { var bk = readyBuff(w) || readyDebuff(w); if (bk) { inp.skill = bk; return; } }
-    var r = bfs(map, p.node.i, teleEdges(w)), t = null, best = Infinity, zn = zoneOf(w.cur, w.mapId), idle = false;
+    var r = bfs(map, p.node.i, a.mvOff ? null : teleEdges(w)), t = null, best = Infinity, zn = zoneOf(w.cur, w.mapId), idle = false;
     // party leader / assist: los demás personajes del mapa siguen al líder y atacan a su mismo objetivo (ignoran su zona de farmeo)
     var lead = w.leader, follow = lead && lead !== w.cur && lead.mapId === w.cur.mapId && lead.player.state !== 'dead';
     if (follow) {
@@ -1398,8 +1494,8 @@
       var skId = readySkill(w, dx >= 0 ? 1 : -1);
       var wd = skId ? null : wantSkillDist(w);
       if (skId) { p.dir = dx >= 0 ? 1 : -1; if (p.cd <= 0) inp.skill = skId; }   // auto farm: usa la skill si hay enemigos bien dentro de su área
+      else if (Math.abs(dx) > (wd !== null ? wd : (rangedCfg(w) ? rangedCfg(w).range * 0.8 : meleeNear(w))) + 60 && boost(w, dx, wd !== null ? wd : (rangedCfg(w) ? rangedCfg(w).range * 0.8 : meleeNear(w)))) { /* skill de movimiento: ya se inició */ }
       else if (wd !== null && Math.abs(dx) > wd) { if (dx > 0) inp.right = true; else inp.left = true; }   // hay skill disponible: acercarse al rango cómodo en vez de lanzarla al borde
-      else if (Math.abs(dx) > 200 && tryTeleport(w, dx)) { /* Teleport: ya se movió */ }
       else if (Math.abs(dx) > (rangedCfg(w) ? rangedCfg(w).range * 0.8 : meleeNear(w))) { if (dx > 0) inp.right = true; else inp.left = true; }
       else { p.dir = dx >= 0 ? 1 : -1; if (p.cd <= 0) inp.attack = true; }
     } else {
@@ -1413,10 +1509,15 @@
         if (walkTo(e.takeoffX, 2.5)) {   // salta ya avanzando hacia el punto de aterrizaje: con impulso horizontal desde el despegue
           inp.jump = true; inp.left = inp.right = false;
           if (e.landX > p.x + 3) inp.right = true; else if (e.landX < p.x - 3) inp.left = true;
+          var tsj = teleSkill(w);   // salto largo con Flash Jump: se impulsa en el aire
+          if (tsj && tsj.kind === 'flash' && Math.abs(e.landX - p.x) > fjParams(tsj).reach + 40 && mvReady(w, tsj, true)) a.fj = { dir: e.landX > p.x ? 1 : -1, tx: e.landX };
         }
       }
       else if (e.type === 'tele') {
-        if (walkTo(e.takeoffX, 3)) doTeleport(w, e.landX, w.map.nodes[e.to]);   // sin MP o en enfriamiento espera aquí
+        if (walkTo(e.takeoffX, 3)) {   // sin MP o en enfriamiento espera aquí
+          var tk = ts0 && ts0.kind;
+          if (tk === 'flash') startFlash(w, e.dir || 1, e.landX); else if (tk === 'wings') doWings(w, e); else doTeleport(w, e.landX, w.map.nodes[e.to]);
+        }
       }
       else if (e.type === 'climb') {
         var Lr = e.ladder;

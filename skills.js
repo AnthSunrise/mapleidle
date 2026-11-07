@@ -217,7 +217,7 @@
     id: 'ftWarriorLeap', cls: 'warrior', branches: FT, job: 2, skillId: 1101010, name: 'Warrior Leap', maxLevel: 5, teleportSkill: true, leap: true,
     icon: 'assets/skill/ft_warrior_leap_icon.png',
     mpCon: function (x) { return 65 - 5 * eq(x, 10, 5); }, dist: function (x) { return 140 + 10 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0,
-    info: function (x) { return 'Impulso: ' + this.dist(x) + ' px al frente (y hasta ' + this.vert(x) + ' px arriba/abajo) · MP ' + this.mpCon(x); }
+    info: function (x) { return 'Empujón desde el suelo: ' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); }
   };
 
   /* ---------- Page (120.img): comparte con el Fighter Weapon Mastery, Final Attack, Physical Training, Weapon Booster, Ground Smash y Warrior Leap
@@ -373,8 +373,8 @@
 	  SKILLS.htFlashJump = {
 		id: 'htFlashJump', cls: 'archer', branches: HT, job: 2, skillId: 3101003, name: 'Flash Jump', maxLevel: 5, teleportSkill: true, leap: true,
 		icon: 'assets/skill/ht_flash_jump_icon.png', dir: 'assets/skill/ht_flash_jump/',
-		mpCon: function (x) { return 30 - 2 * eq(x, 10, 5); }, dist: function (x) { return 150 + 15 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0,
-		info: function (x) { return 'Impulso: ' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); },
+		mpCon: function (x) { return 30 - 2 * eq(x, 10, 5); }, dist: function (x) { return 80 + 5 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0, fjLift: -480, fjDur: 0.22,   // Flash Jump (arquero): salta y en el aire da el impulso: MÁS ALTURA que alcance
+		info: function (x) { return 'Salta y da un 2º impulso en el aire: +' + this.dist(x) + ' px al frente y mucha altura extra · MP ' + this.mpCon(x); },
 		effectDelay: 120,
 		effect: [[0, 0], [48, 85], [39, 83], [40, 80], [38, 75], [-37, 59]].map(function (a) { return { ox: a[0], oy: a[1] }; })
 	  };
@@ -471,8 +471,8 @@
   SKILLS.asFlashJump = {
     id: 'asFlashJump', cls: 'thief', branches: AS, job: 2, skillId: 4101009, name: 'Flash Jump', maxLevel: 5, teleportSkill: true, leap: true,
     icon: 'assets/skill/as_flash_jump_icon.png', dir: 'assets/skill/as_flash_jump/', // Usar las imágenes del arquero si no extrajiste las del thief
-    mpCon: function (x) { return 42 - 2 * eq(x, 10, 5); }, dist: function (x) { return 160 + 15 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0,
-    info: function (x) { return 'Impulso horizontal (Teleport) · MP ' + this.mpCon(x); }
+    mpCon: function (x) { return 42 - 2 * eq(x, 10, 5); }, dist: function (x) { return 140 + 9 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0, fjLift: -160, fjDur: 0.28,   // Flash Jump (thief): salta y en el aire da el impulso: MÁS ALCANCE que altura
+    info: function (x) { return 'Salta y se impulsa en el aire: +' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); }
   };
 
   SKILLS.asShurikenBurst = {   // 4101008: WZ ball 3 frames + effect 7 frames (origins del WZ)
@@ -631,8 +631,8 @@
   SKILLS.bdFlashJump = {
     id: 'bdFlashJump', cls: 'thief', branches: BD, job: 2, skillId: 4201008, name: 'Flash Jump', maxLevel: 5, teleportSkill: true, leap: true,
     icon: 'assets/skill/bd_flash_jump_icon.png', dir: 'assets/skill/as_flash_jump/', // Usamos los efectos que extrajiste previamente del Assassin
-    mpCon: function (x) { return 42 - 2 * x; }, dist: function (x) { return 160 + 15 * x; }, vert: function (x) { return 90; }, cooldown: 1.0,
-    info: function (x) { return 'Impulso horizontal (Teleport) · MP ' + this.mpCon(x); }
+    mpCon: function (x) { return 42 - 2 * x; }, dist: function (x) { return 140 + 9 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0, fjLift: -160, fjDur: 0.28,
+    info: function (x) { return 'Salta y se impulsa en el aire: +' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); }
   };
 
   SKILLS.bdChannelKarma = {
@@ -908,10 +908,10 @@
     id: 'gsWings', cls: 'pirate', branches: GS, job: 2, skillId: 5201011, name: 'Wings', maxLevel: 5, teleportSkill: true, leap: true, vertical: true,
     icon: 'assets/skill/gs_wings_icon.png', dir: 'assets/skill/gs_wings/',
     mpCon: function (x) { return 30 - 4 * x; },
-    dist: function (x) { return 0; },
+    dist: function (x) { return 40; },   // margen horizontal para alinearse con la plataforma de arriba
     vert: function (x) { return 80 * x; },                 // 80 px por nivel → 400 px a nivel 5
     cooldown: 1.0,
-    info: function (x) { return 'Salto vertical a la plataforma de arriba (hasta ' + this.vert(x) + ' px) · MP ' + this.mpCon(x); },
+    info: function (x) { return 'Vuela a la plataforma de arriba (hasta ' + this.vert(x) + ' px) · MP ' + this.mpCon(x); },
     effectDelay: 90,
     effect: [[16, 29], [54, 27], [50, 27], [56, 27], [52, 27], [54, 27]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };

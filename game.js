@@ -108,10 +108,13 @@
         if (SKD.effect0) A.skill[sid].effect0 = await R('effect0_', SKD.effect0.length);
         return;
       }
-      if (SKD.buff || SKD.debuff || (SKD.ranged && !SKD.ball) || SKD.passiveSkill || SKD.teleportSkill) return;   // ranged con `ball` (Triple Shot) sí carga efecto y golpe
+      if (SKD.teleportSkill) { if (SKD.effect && SKD.dir) A.skill[sid] = { effect: await R('effect_', SKD.effect.length), hit: [] }; return; }   // Flash Jump / Wings: solo el efecto
+      if (SKD.buff || SKD.debuff || (SKD.ranged && !SKD.ball) || SKD.passiveSkill) return;   // ranged con `ball` (Triple Shot) sí carga efecto y golpe
       A.skill[sid] = { effect: await R('effect_', SKD.effect.length), hit: await R('hit_', SKD.hit.length) };
     }));
     A.arrow = await loadImg(ASSETS + 'skill/arrow.png');
+    A.basic = {}; var BF = window.MapleBasicFx || {};   // animaciones de BasicEff.img: Teleport, SoulRush, Flying, LevelUp, JobChanged
+    await Promise.all(Object.keys(BF).map(async function (k) { A.basic[k] = await loadMany(BF[k].frames.map(function (_, i) { return ASSETS + 'basic/' + k + '/' + i + '.png'; })); }));
     var IG = window.MapleSkills.SKILLS.fpIgnite; A.ignite = await Promise.all(IG.tiles.map(function (t, is) { return loadMany(t.map(function (_, ifr) { return IG.dir + 'tile_' + is + '_' + ifr + '.png'; })); }));   // fuego en el suelo de Ignite: 3 tamaños x 7 frames
     A.mobDebuff = {}; A.buffFx = {}; A.ball = {};
     var jobs = [];
@@ -306,7 +309,7 @@
       if (p.moving) ch._cI = Math.floor(world.t * 1000 / 250) % 2; fixed = ch._cI || 0;
     }
     else if (p.state === 'air') { act = 'jump'; loop = false; }
-    else if (p.state === 'ground' && p.dropT > 0) { act = 'prone'; loop = false; fi = 0; }
+    else if (p.state === 'ground' && (p.dropT > 0 || (p.mv && p.mv.k === 'dash' && p.mv.t < p.mv.wind))) { act = 'prone'; loop = false; fi = 0; }
     else if (p.state === 'ground' && p.moving) act = 'walk1';
     // pose según el arma equipada (lanza/ballesta: stand2, walk2, swingP/T, shoot2; pistola: swingP). El progreso se reescala si la pose tiene otro nº de fotogramas.
     var a2 = L.remap ? L.remap(ch, act) : act, idx;
@@ -369,6 +372,12 @@
       ctx.beginPath(); for (var a = 0; a < 8; a++) { var r = a % 2 ? 3 : 9, an = a * Math.PI / 4; ctx.lineTo(Math.cos(an) * r, Math.sin(an) * r); } ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     });
     world.fx.forEach(function (f) {
+      if (f.follow) { f.x = f.follow.x; f.y = f.follow.y; }
+      if (f.kind === 'be') {   // animación de BasicEff
+        var BE = window.MapleBasicFx && window.MapleBasicFx[f.name], bi = A.basic && A.basic[f.name]; if (!BE || !bi || f.t < 0) return;
+        var bms = f.t * 1000 * (f.rate || 1), bj = 0; while (bj < BE.frames.length - 1 && bms >= BE.frames[bj][2]) { bms -= BE.frames[bj][2]; bj++; }
+        fxSprite(bi[bj], BE.frames[bj][0], BE.frames[bj][1], f.x, f.y, f.dir); return;
+      }
       if (f.kind === 'spark') {   // destello al impactar una estrella
         ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f.t / 0.3); ctx.strokeStyle = '#fff6b0'; ctx.lineWidth = 2; var rr = 6 + f.t * 40;
         ctx.beginPath(); for (var d = 0; d < 4; d++) { var an2 = d * Math.PI / 2 + Math.PI / 4; ctx.moveTo(f.x + Math.cos(an2) * rr * 0.4, f.y + Math.sin(an2) * rr * 0.4); ctx.lineTo(f.x + Math.cos(an2) * rr, f.y + Math.sin(an2) * rr); } ctx.stroke(); ctx.restore(); return;

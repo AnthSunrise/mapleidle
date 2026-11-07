@@ -559,3 +559,13 @@ ETAPA 53 - Fin del vaivén izquierda/derecha (sim.js)
 - Causa: con zona de farmeo, si había dos enemigos casi a la misma distancia en plataformas distintas (p. ej. uno en una plataforma y otro en otra, ambos a un Teleport/salto), el personaje cambiaba de objetivo CADA FRAME, y daba un paso hacia cada lado alternando.
 - Arreglo: la IA mantiene su objetivo anterior mientras siga vivo y alcanzable, salvo que otro esté claramente mejor (un salto menos, o mucho más cerca, o élite/jefe).
 - Nuevo test: test_flicker.js (reproduce el caso de Ramidus con tu zona en Golem Temple).
+
+ETAPA 54 - Skills de movimiento reales, con animación (sim.js, game.js, skills.js, basiceff.js, index.html, assets/basic/)
+- Ya no son teletransportes (salvo Teleport del Mage, que sigue siendo instantáneo pero ahora con su animación BasicEff "Teleport" al salir y al llegar).
+- Warrior Leap / Soul Rush: el personaje se agacha (pose prone, 0,12 s) y sale empujado por el suelo hacia el frente (0,24 s) con la animación SoulRush detrás. Alcance = dist(nivel). Si el empujón pasa del borde de la plataforma, cae.
+- Flash Jump (Archer/Crossbowman y Thief/Blade Dancer): el personaje SALTA primero y, cerca del punto más alto, da el impulso en el aire. Archer: mucha altura extra (fjLift -480) y menos alcance; Thief: más alcance y poca altura (fjLift -160). Efecto: Thief = BasicEff "Flying"; Archer/Crossbowman = assets/skill/ht_flash_jump (y cb_flash_jump) effect_0..5.
+- Wings (Gunslinger): vuela hasta la plataforma de arriba (hasta 80 px por nivel), alineándose en el aire con la plataforma; efecto assets/skill/gs_wings effect_0..5.
+- La IA los usa CONSTANTEMENTE al desplazarse: cada vez que va a andar más de ~110 px en el suelo usa Teleport / Leap / Flash Jump (guarda un 20% de MP para las skills de ataque). Flash Jump además crea rutas nuevas entre plataformas (simuladas con la misma física) y se usa en saltos largos. Wings se usa como ruta rápida hacia arriba. Sin MP planifica rutas normales (con histéresis).
+- Nuevas animaciones BasicEff: LevelUp (al subir de nivel) y JobChanged (al avanzar de clase). Datos en basiceff.js, imágenes en assets/basic/.
+- skills.js: Flash Jump con fjLift/fjDur y dist nuevos; Wings con dist 40 (margen horizontal).
+- Nuevo test: test_move.js.
