@@ -224,7 +224,7 @@
    * (mismos valores y arte en los .img); las propias son Threaten y Power Guard. Se copian con otro id / rama / skillId. */
   function cloneJob2(src, id, branch, skillId, pre, from, extra) {
     var o = Object.assign({}, src, extra || {}); o.id = id; o.branches = [branch]; o.skillId = skillId;
-    if (src.req) { o.req = {}; for (var k in src.req) o.req[k.replace(from, pre)] = src.req[k]; }
+    if (src.req && !(extra && extra.req)) { o.req = {}; for (var k in src.req) o.req[k.replace(from, pre)] = src.req[k]; }
     SKILLS[id] = o; return o;
   }
   cloneJob2(SKILLS.ftWeaponMastery, 'pgWeaponMastery', 'page', 1200000, 'pg', 'ft');
@@ -403,7 +403,7 @@
 	  };
 	  
 	  SKILLS.htSoulArrow = passive({
-		id: 'htSoulArrow', cls: 'archer', branches: HT, job: 2, skillId: 3101004, name: 'Soul Arrow', maxLevel: 20, 
+		id: 'htSoulArrow', cls: 'archer', branches: HT, job: 2, skillId: 3101004, name: 'Soul Arrow', maxLevel: 10, 
 		icon: 'assets/skill/ht_soul_arrow_icon.png', dir: 'assets/skill/ht_soul_arrow/', // <--- LÍNEA AGREGADA
 		req: { htBowBooster: 5 },
 		soulArrow: true, 
@@ -492,7 +492,7 @@
   };
 
   SKILLS.asGustCharm = {   // 4101010: talismán (effect 11 frames) + viento perforante (ball 3 frames) que empuja a los enemigos que atraviesa
-    id: 'asGustCharm', cls: 'thief', branches: AS, job: 2, skillId: 4101010, name: 'Gust Charm', maxLevel: 20,
+    id: 'asGustCharm', cls: 'thief', branches: AS, job: 2, skillId: 4101010, name: 'Gust Charm', maxLevel: 15,
     action: 'windTalisman', pierce: true, pushDist: 150, pushTime: 0.35,
     icon: 'assets/skill/as_gust_charm_icon.png', dir: 'assets/skill/as_gust_charm/',
     damage: function (x) { return 201 + 4 * x; },
@@ -507,7 +507,7 @@
   };
 
   SKILLS.asMark = passive({
-    id: 'asMark', cls: 'thief', branches: AS, job: 2, skillId: 4101011, name: 'Assassin\'s Mark', maxLevel: 1, hidden: true,
+    id: 'asMark', cls: 'thief', branches: AS, job: 2, skillId: 4101011, name: 'Assassin\'s Mark', maxLevel: 1, hidden: true, free: true,
     icon: 'assets/skill/as_mark_icon.png', dir: 'assets/skill/as_mark/',
     prop: function (x) { return 40; }, damage: function (x) { return 30; }, markTime: 20, armTime: 0.4,
     mobCount: 2, bulletCount: 2, range: 1000,
@@ -612,7 +612,7 @@
   };
 
   SKILLS.bdSteal = passive({
-    id: 'bdSteal', cls: 'thief', branches: BD, job: 2, skillId: 4201004, name: 'Steal (Pasiva)', maxLevel: 10,
+    id: 'bdSteal', cls: 'thief', branches: BD, job: 2, skillId: 4201004, name: 'Steal (Pasiva)', maxLevel: 15,
     icon: 'assets/skill/bd_steal_icon.png',
     dir: 'assets/skill/bd_steal/',
     prop: function (x) { return 3 * x; },
@@ -669,7 +669,7 @@
 
   // Pasiva automática de Congelación
   SKILLS.ilFreezingCrush = passive({
-    id: 'ilFreezingCrush', cls: 'mage', branches: IL, job: 2, skillId: 2200011, name: 'Freezing Crush', maxLevel: 1, hidden: true,
+    id: 'ilFreezingCrush', cls: 'mage', branches: IL, job: 2, skillId: 2200011, name: 'Freezing Crush', maxLevel: 1, hidden: true, free: true,
     icon: 'assets/skill/il_freezing_crush_icon.png', dir: 'assets/skill/il_freezing_crush/',
     info: function (x) { return 'Los ataques de hielo aplican marcas. Los ataques de rayo consumen las marcas infligiendo +8% de daño por carga (máx 5).'; },
     mobFxDelay: 120, // Animación a 120ms según el WZ
@@ -733,10 +733,10 @@
 
   // Invincible: Reduce daño físico
   SKILLS.crInvincible = {
-    id: 'crInvincible', cls: 'mage', branches: CR, job: 2, skillId: 2301003, name: 'Invincible', maxLevel: 20, buff: 'invincible', req: { crHeal: 5 },
+    id: 'crInvincible', cls: 'mage', branches: CR, job: 2, skillId: 2301003, name: 'Invincible', maxLevel: 10, buff: 'invincible', req: { crHeal: 5 },
     icon: 'assets/skill/cr_invincible_icon.png', dir: 'assets/skill/cr_invincible/',
     mods: function (x) { return { physReduce: 5 + x }; }, duration: function (x) { return 20 * x; }, mpCon: function (x) { return 15 + 3 * Math.floor(x / 3); }, renewAt: 10,
-    info: function (x) { return 'Reduce el daño físico recibido un ' + (5 + x) + '% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return 'Reduce el daño físico recibido un ' + this.mods(x).physReduce + '% · ' + this.duration(x) + ' s'; },
     hitAt: 0.3, total: 0.8, effectDelay: 100,
     effect: [[23, 6], [28, 9], [28, 166], [28, 170], [66, 171], [69, 174], [67, 168], [66, 167], [66, 168], [76, 159], [89, 173]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -916,6 +916,7 @@
     effect: [[16, 29], [54, 27], [50, 27], [56, 27], [52, 27], [54, 27]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
 
+  SKILLS.gsPerseverance = Object.assign({}, SKILLS.bwPerseverance, { id: 'gsPerseverance', branches: GS });   // el Gunslinger también recibe Perseverance del Brawler (mismos valores)
   SKILLS.gsGrenade = passive({
     id: 'gsGrenade', cls: 'pirate', branches: GS, job: 2, skillId: 5201002, name: 'Grenade', maxLevel: 15,
     icon: 'assets/skill/gs_grenade_icon.png', dir: 'assets/skill/gs_grenade/',
@@ -935,7 +936,18 @@
     specialDelay: 120
   });
   
-   var ORDER = ['slashBlast', 'ironBody', 'warriorMastery', 'haste', 'luckySeven', 'nimbleBody', 'arrowBlow', 'archerMastery', 'criticalShot', 'magicClaw', 'magicArmor', 'magicGuard', 'teleport', 'mpBoost', 'somersaultKick', 'shadowHeart', 'bulletTime', 'dash', 'hpBoost', 'ftWeaponMastery', 'ftFinalAttack', 'ftPhysicalTraining', 'ftWeaponBooster', 'ftRage', 'ftPowerReflection', 'ftGroundSmash', 'ftWarriorLeap', 'pgWeaponMastery', 'pgFinalAttack', 'pgPhysicalTraining', 'pgWeaponBooster', 'pgThreaten', 'pgPowerGuard', 'pgGroundSmash', 'pgWarriorLeap', 'spWeaponMastery', 'spFinalAttack', 'spPhysicalTraining', 'spWeaponBooster', 'spIronWill', 'spHyperBody', 'spGroundSmash', 'spWarriorLeap', 'fpSpellMastery', 'fpMpEater', 'fpHighWisdom', 'fpMeditate', 'fpMagicBooster', 'fpFlameArrow', 'fpPoisonBreath', 'fpIgnite', 'htBowMastery', 'htFinalAttack', 'htPhysicalTraining', 'htBowBooster', 'htFlashJump', 'htArrowBomb', 'htSoulArrow', 'htHawk', 'cbCrossbowMastery', 'cbFinalAttack', 'cbPhysicalTraining', 'cbCrossbowBooster', 'cbFlashJump', 'cbIronArrow', 'cbHawk', 'cbNetToss', 'asClawMastery', 'asCriticalThrow', 'asPhysicalTraining', 'asClawBooster', 'asFlashJump', 'asShurikenBurst', 'asGustCharm', 'asMark', 'bwKnuckleMastery', 'bwPhysicalTraining', 'bwPerseverance', 'bwKnuckleBooster', 'bwDarkClarity', 'bwCorkscrewBlow', 'bwTornadoUppercut', 'bdDaggerMastery', 'bdPhysicalTraining', 'bdShieldMastery', 'bdDaggerBooster', 'bdSteal', 'bdFlashJump', 'bdChannelKarma', 'bdSavageBlow', 'ilMpEater', 'ilSpellMastery', 'ilHighWisdom', 'ilMeditate', 'ilMagicBooster', 'ilFreezingCrush', 'ilColdBeam', 'ilThunderbolt', 'crMpEater', 'crSpellMastery', 'crHighWisdom', 'crHeal', 'crInvincible', 'crBless', 'crHolyArrow', 'crMagicBooster', 'gsGunMastery', 'gsGunBooster', 'gsPhysicalTraining', 'gsTripleShot', 'gsRapidBlast', 'gsWings', 'gsGrenade'];
+  /* Skills cuyo nivel máximo se bajó para cuadrar el SP (120 por rama): sus valores se reescalan para que el nivel máximo NUEVO dé lo mismo que daba el máximo ANTERIOR
+   * (ej. Invincible Lv10 = lo que antes daba el Lv20). x' = x * (máx. anterior / máx. nuevo) en las fórmulas de valores. */
+  function rescale(id, oldMax) {
+    var sk = SKILLS[id], K = oldMax / sk.maxLevel;
+    ['mods', 'duration', 'mpCon', 'prop', 'damage'].forEach(function (fn) {
+      var f = sk[fn]; if (typeof f !== 'function') return;
+      sk[fn] = function (x) { var r = f.call(this, x * K); return typeof r === 'number' ? Math.round(r) : r; };
+    });
+  }
+  rescale('crInvincible', 20); rescale('htSoulArrow', 20); rescale('asGustCharm', 20); rescale('bdSteal', 10);
+
+   var ORDER = ['slashBlast', 'ironBody', 'warriorMastery', 'haste', 'luckySeven', 'nimbleBody', 'arrowBlow', 'archerMastery', 'criticalShot', 'magicClaw', 'magicArmor', 'magicGuard', 'teleport', 'mpBoost', 'somersaultKick', 'shadowHeart', 'bulletTime', 'dash', 'hpBoost', 'ftWeaponMastery', 'ftFinalAttack', 'ftPhysicalTraining', 'ftWeaponBooster', 'ftRage', 'ftPowerReflection', 'ftGroundSmash', 'ftWarriorLeap', 'pgWeaponMastery', 'pgFinalAttack', 'pgPhysicalTraining', 'pgWeaponBooster', 'pgThreaten', 'pgPowerGuard', 'pgGroundSmash', 'pgWarriorLeap', 'spWeaponMastery', 'spFinalAttack', 'spPhysicalTraining', 'spWeaponBooster', 'spIronWill', 'spHyperBody', 'spGroundSmash', 'spWarriorLeap', 'fpSpellMastery', 'fpMpEater', 'fpHighWisdom', 'fpMeditate', 'fpMagicBooster', 'fpFlameArrow', 'fpPoisonBreath', 'fpIgnite', 'htBowMastery', 'htFinalAttack', 'htPhysicalTraining', 'htBowBooster', 'htFlashJump', 'htArrowBomb', 'htSoulArrow', 'htHawk', 'cbCrossbowMastery', 'cbFinalAttack', 'cbPhysicalTraining', 'cbCrossbowBooster', 'cbFlashJump', 'cbIronArrow', 'cbHawk', 'cbNetToss', 'asClawMastery', 'asCriticalThrow', 'asPhysicalTraining', 'asClawBooster', 'asFlashJump', 'asShurikenBurst', 'asGustCharm', 'asMark', 'bwKnuckleMastery', 'bwPhysicalTraining', 'bwPerseverance', 'bwKnuckleBooster', 'bwDarkClarity', 'bwCorkscrewBlow', 'bwTornadoUppercut', 'bdDaggerMastery', 'bdPhysicalTraining', 'bdShieldMastery', 'bdDaggerBooster', 'bdSteal', 'bdFlashJump', 'bdChannelKarma', 'bdSavageBlow', 'ilMpEater', 'ilSpellMastery', 'ilHighWisdom', 'ilMeditate', 'ilMagicBooster', 'ilFreezingCrush', 'ilColdBeam', 'ilThunderbolt', 'crMpEater', 'crSpellMastery', 'crHighWisdom', 'crHeal', 'crInvincible', 'crBless', 'crHolyArrow', 'crMagicBooster', 'gsGunMastery', 'gsGunBooster', 'gsPhysicalTraining', 'gsTripleShot', 'gsRapidBlast', 'gsWings', 'gsGrenade', 'gsPerseverance'];
   // Lucky Seven (Thief, 4001344). Del 400.img: damage "110+4*x", mpCon "8+2*d(x/6)", bulletCount 2, maxLevel 20.
   // Efectos (lanzamiento y golpe) cambian con el nivel del personaje: base, 10, 15, 20 y 25.
   var LS_TIERS = {
@@ -977,7 +989,7 @@
     var a = JOB_START[job], b = JOB_START[job + 1] ? JOB_START[job + 1] - 1 : 200;
     return level < a ? 0 : SP_PER_LEVEL * (Math.min(level, b) - a + 1);
   }
-  function spent(world, job) { return ORDER.reduce(function (n, id) { return n + (jobOf(SKILLS[id]) === job ? world.skills[id].level : 0); }, 0); }
+  function spent(world, job) { return ORDER.reduce(function (n, id) { return n + (jobOf(SKILLS[id]) === job && !SKILLS[id].free ? world.skills[id].level : 0); }, 0); }   // las skills 'free' (regaladas al cambiar de job) no gastan SP
   function spAvailable(world, job) { job = job || 1; return Math.max(0, spTotal(world.stats.level, job) - spent(world, job)); }
   // ¿se puede subir un nivel? SP del job, nivel máximo, requisitos de otras skills (req) y, en 2do job, la rama correcta
   function canLearn(world, id) {

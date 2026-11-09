@@ -569,3 +569,151 @@ ETAPA 54 - Skills de movimiento reales, con animación (sim.js, game.js, skills.
 - Nuevas animaciones BasicEff: LevelUp (al subir de nivel) y JobChanged (al avanzar de clase). Datos en basiceff.js, imágenes en assets/basic/.
 - skills.js: Flash Jump con fjLift/fjDur y dist nuevos; Wings con dist 40 (margen horizontal).
 - Nuevo test: test_move.js.
+
+ETAPA 55 - Progreso offline (sim.js, game.js)
+- Mientras juegas el juego mide tu ritmo de farmeo real (EXP por personaje, mesos y objetos por segundo, media móvil de ~15 min) y lo guarda en la partida.
+- Al volver tras estar ausente (cerraste la pestaña o la dejaste oculta/en segundo plano más de 1 min) recibes el 25% de lo que habrías ganado, con un máximo de 4 h de ausencia (4 h x 25% = 1 h de farmeo activo). Ausente 10 h = igual que 4 h.
+- Se concede EXP (con subida de nivel si toca), mesos y objetos de drop (si el inventario está lleno se pierden y se avisa). No consume pociones ni mata personajes.
+- Un cuadro "¡Bienvenido de vuelta!" resume lo ganado (Aceptar / Enter / Esc lo cierra).
+- Pestaña oculta = el juego se pausa, así que también cuenta como ausencia (al volver a la pestaña se aplica).
+- El temporizador de respawn del jefe de campo sigue sin guardarse.
+- Ajustes: S.OFFLINE = { cap: 4*3600, rate: 0.25, min: 60 } en sim.js.
+- Nuevo test: test_offline.js.
+Archivos: sim.js, game.js, LEEME.txt
+
+ETAPA 56 - Acierto por diferencia de nivel (sim.js)
+- Tus golpes pueden FALLAR contra enemigos de más nivel que tu personaje: mismo nivel o más = 100% de acierto; cada nivel de menos = -5% (mínimo 10%). Solo cuenta el nivel: ni DEX ni LUK ni el build influyen.
+- Un golpe fallado no hace daño ni empuja al enemigo y muestra el sprite "MISS" sobre él. Afecta a ataques básicos, estrellas/flechas, skills y las pasivas de daño (cada enemigo de un ataque de área tira su propio acierto). Buffs y curaciones nunca fallan.
+- Los enemigos sin nivel definido (caracoles) cuentan como nivel 1: siempre aciertas.
+- Ajustes: S.ACC = { perLevel: 0.05, min: 0.10 } en sim.js. La evasión de los personajes contra golpes de enemigos sigue igual.
+- Nuevo test: test_acc.js. (test_assassin.js es intermitente por la temporización aleatoria de su propia comprobación de estrellas; ya fallaba así antes de las etapas 54-58.)
+Archivos: sim.js, LEEME.txt
+
+ETAPA 57 - Equipos como objetos individuales (base de los potenciales) (items.js, layers.js, mui.js, sim.js)
+- Sin cambios visibles. Un equipo (en el inventario o puesto) ahora puede ser un texto con su id (como hasta ahora) o una INSTANCIA { id, pot?, sc? } con datos propios (potencial, scrolls). Cada copia de un mismo equipo podrá tener su propio potencial.
+- Compatibilidad: las partidas anteriores valen tal cual (los equipos sin datos propios siguen guardándose como texto); no hay migración ni se pierde nada.
+- Nuevas funciones en items.js: idOf(x) (id base), cleanInst(x) (valida/normaliza, usado por sanitize) y toInst(x). addItem, equipItem, unequipSlot, calcStats y sanitize ya aceptan instancias y las conservan al equipar/desequipar/guardar/cargar.
+- Se adaptaron mui.js (inventario, equipo, tienda de venta), layers.js (sprites del personaje) y sim.js (velocidad del arma) para leer el id con idOf.
+- Nuevo test: test_inst.js.
+Archivos: items.js, layers.js, mui.js, sim.js, LEEME.txt
+
+ETAPA 58 - Potenciales y cubos (items.js, sim.js, mui.js, assets/item/cube_*.png)
+- Los equipos (nivel > 0, sin el equipo inicial ni las armas provisionales de rama) pueden tener potencial: 4 rangos con color (Rare azul, Epic morado, Unique amarillo, Legendary verde) y 3 líneas. La línea 1 es siempre del rango del equipo; las líneas 2 y 3 son del rango del equipo con probabilidad p2/p3 (Miracle y Super: 10%/1%; Black: 20%/5%) y si no, del rango inferior (el Rare usa líneas planas: STR/DEX/INT/LUK +n y Max HP +n).
+- Valores de las líneas por tramo de nivel del equipo (0-30 / 31-70 / 71-150 / 151+): STR/DEX/INT/LUK %, Max HP % y ATT %: Rare 1/2/3/4, Epic 2/4/6/7, Unique 3/6/9/10, Legendary 6/9/12/13; All Stats % un rango por debajo (Epic 1/2/3/4 ... Legendary 3/6/9/10); Crit Rate % 2/4/6/8; Crit Damage % 1/3/5/8 (solo guantes); Boss Monster Damage % 30 (Unique) y 40 (Legendary). Solo armas: ATT % (MATT % en bastones de mago), Crit Rate y Boss. Solo guantes: Crit Rate y Crit Damage. Resto de equipos: stats %, All Stats % y HP %.
+- Eliminadas las líneas basura: DEF, MP, velocidad, salto, evasión, ignorar daño, recuperación, reflejar, robo, cooldown, etc.
+- Efecto real: STR/DEX/INT/LUK y All Stats % multiplican el stat total; ATT/MATT % multiplican el ATT del equipo; HP % y planos suben el HP máximo; Crit Rate/Damage suben el crítico; Boss Monster Damage solo contra field bosses.
+- Cubos (objetos de la pestaña USE; clic en ellos abre el cuadro "Cubo", elige el equipo — del inventario o puesto — y "Usar cubo"): Miracle Cube (Rare→Epic 11.8%, Epic→Unique 3.8%), Super Miracle Cube (14.1% / 6% / Unique→Legendary 2.4%) y Black Cube (16% / 11% / 5%, y te muestra el resultado nuevo para ELEGIR entre quedarte con el nuevo o conservar el actual). El rango nunca baja. Un cubo sobre un equipo sin potencial le da un Rare.
+- Drops: Miracle Cube cae de todos los enemigos (0,25%); Super Miracle de élites (8%) y field bosses (30%); Black Cube de field bosses (10%). Las misiones diarias darán Black Cubes cuando existan. El Miracle Cube también se vende en la tienda (30.000 mesos, PRECIO PROVISIONAL).
+- Equipos dropeados: 28% sale con potencial Rare, 6% Epic, 1% Unique; el resto sin potencial. (A futuro: lo comprado en tienda saldrá 100% Rare.)
+- Tooltip: bloque "Potential (rango)" con las 3 líneas; los equipos con potencial llevan un borde del color de su rango en el inventario y en la ventana de equipo.
+- Iconos de los cubos: PLACEHOLDER (assets/item/cube_miracle.png, cube_super.png, cube_black.png); reemplázalos por los de tu Swordie con el mismo nombre.
+- Nuevo test: test_potential.js (valores por rango/nivel, probabilidades de los cubos por Monte Carlo, drops, efecto en las stats).
+Archivos: items.js, sim.js, mui.js, assets/item/cube_*.png, LEEME.txt
+
+ETAPA 59 - Scrolls (Etapa C)
+- Scrolls de 100% / 60% / 10%: Glove ATT (+1/+2/+3 ATT); armas por tipo (100%: +1 ATT/MATT; 60%: +1 stat principal y +2 ATT/MATT; 10%: +3 stat y +5 ATT/MATT; ej. arco = DEX); Armor STR/DEX/INT/LUK (+1/+2/+3) para hat, top/overall, bottom, cape, shoes; Accessory con los mismos valores (rings, belt, shoulder, earring, face, eye, pendant).
+- Chaos Scroll: 60% de éxito; solo toca stats que el item YA tiene, cantidad de stats al azar, cambio de -5 a +5 por stat (HP/MP x5), nunca baja de 0.
+- Cada scroll gasta 1 slot de mejora (tuc del item); el nombre muestra "(+X)" = scrolls acertados. Un fallo consume el slot pero no suma al (+X).
+- Clean Slate: devuelve 1 slot perdido por fallos (100% provisional). White Scroll: protege el slot en el próximo scroll (éxito o fallo); tooltip "Upgrade count protection active."
+- Tooltip: stats con "(base +bonus)", "UPGRADES AVAILABLE : N". Tocar un scroll en la pestaña Use abre el selector de equipo.
+- Iconos (assets/item/scroll_100, 60, 10, clean, chaos, white.png) tomados de tus imágenes en ese orden.
+- PROVISIONAL: precios en Scroll Piece (100%=5, 60%=10, 10%=20, chaos 30, clean 25, white 50); scrolls de accesorio no están en tienda (aún no hay accesorios); escudos/sub solo aceptan chaos/clean/white.
+- Test nuevo: test_scroll.js.
+Archivos: items.js, mui.js, assets/item/scroll_*.png, LEEME.txt
+
+ETAPA 60 - Ajustes de offline y stacks
+- Offline: ahora SOLO da EXP y mesos (sin objetos). La EXP offline nunca sube de nivel: como mucho llena la barra hasta justo antes del siguiente nivel. Mesos sin cambio (25%, tope 4 h).
+- Stacks del inventario USE: de 100 a 9999 por casilla (las partidas guardadas valen tal cual). Los equipos siguen siendo individuales (cada uno con su potencial/scrolls).
+- test_offline.js actualizado.
+Archivos: sim.js, items.js, LEEME.txt
+
+ETAPA 61 - Penalización de EXP por nivel
+- Si tu personaje supera al enemigo por 21 o más niveles: -10% de EXP, y -1% más por cada nivel extra, hasta un máximo de -60% (a 71+ niveles de diferencia). Se calcula por personaje (en party cada uno según su nivel).
+- Solo enemigos normales y élites; los field bosses y bosses no tienen penalización. Mobs sin nivel definido no se penalizan.
+- El offline lo hereda solo (mide el ritmo real de EXP).
+- Valores en sim.js: EXP_PEN {from:21, start:.10, step:.01, max:.60}.
+- Test nuevo: test_exppen.js.
+Archivos: sim.js, LEEME.txt
+
+ETAPA 62 - Cubos y scrolls con el flujo de MapleStory
+- Usar un cubo o scroll desde la pestaña Use (doble clic / segundo toque) activa el "modo elegir equipo": se abre la pestaña Equip, los equipos válidos brillan en amarillo, los demás se atenúan y aparece una barra arriba con "Cancelar" (Esc también cancela). También sirven los equipos puestos de la ventana Equip (E).
+- Al elegir un equipo sale un cuadro "¿Quieres usar X en Y? Sí / No" (No te deja elegir otro equipo).
+- Scroll: tras el Sí, el mismo cuadro muestra el resultado (éxito/fallo, protección del White Scroll) con botón OK.
+- Cubos: tras el Sí se gasta el cubo y se abre la ventana original de UIWindow2.img: Cube_Black para el Black Cube (BEFORE / AFTER con botones SELECT, ONE MORE TRY) y Cube_InGame1 para Miracle y Super Miracle (RESULT, ONE MORE TRY, OK). Con animación de uso (Use) y de subida de rango (GradeUp), la caja con el objeto y las 3 líneas de potencial.
+  · Black: SELECT en BEFORE conserva el actual, SELECT en AFTER aplica el nuevo; Esc = conservar el actual. ONE MORE TRY gasta otro cubo y cambia solo el AFTER.
+  · Miracle/Super: el resultado se aplica al instante (como antes); ONE MORE TRY repite con otro cubo.
+- Nuevos assets: assets/ui/cube/ (94 PNG extraídos de UIWindow2.img: fondos, botones, efectos). Las posiciones/tiempos (100 ms por frame) están en mui.js (CUBEUI).
+- Pendiente (aún no hecho): "chat log" con resultados de scrolls, drops raros, etc.
+Archivos: mui.js, assets/ui/cube/*, LEEME.txt
+
+ETAPA 63 - Ajustes de cubos/scrolls
+- Quitado el resaltado amarillo en el modo "elegir equipo"; solo se atenúan (transparentes) los equipos que no sirven.
+- Los cubos solo se pueden usar en equipos que YA tienen potencial (sin potencial = atenuado). El Miracle Cube tampoco sirve con potencial Legendary (Super Miracle y Black sí). ONE MORE TRY se desactiva si ya no se puede.
+- Borde de rango del potencial (azul/violeta/amarillo/verde) reducido a 1 px.
+- test_potential.js actualizado.
+Archivos: items.js, mui.js, LEEME.txt
+
+ETAPA 64 - El juego sigue en segundo plano
+- Antes: al cambiar de pestaña el juego se pausaba y al volver salía "Ausente 2 min". Ahora la simulación sigue corriendo con la pestaña oculta (la mueve un temporizador de Web Worker, que el navegador no frena como los de la página; respaldo: setInterval).
+- El progreso offline ya no depende de "pestaña oculta" sino de HUECOS: si la simulación no avanzó durante más de 20 s (pestaña cerrada, navegador de móvil congelado/suspendido, equipo dormido, pestaña descartada por ahorro de memoria) ese tiempo cuenta como ausencia (25 %, tope 4 h).
+- Se guarda cada 10 s también en segundo plano; savedAt = último instante en que la simulación avanzó.
+- Nota: en el PC, una pestaña abierta días sigue jugando en tiempo real (no hay tope); en el móvil el navegador congela la pestaña en segundo plano, así que al volver cuenta como offline (máx. 4 h al 25 %).
+Archivos: game.js, LEEME.txt
+
+ETAPA 65 - Corrección: equipos con potencial/scrolls no se veían en el personaje
+- No pude reproducirlo con mis archivos (el motor de capas ya aceptaba objetos { id, pot, sc }), así que la causa más probable es que tu layers.js sea una versión anterior a la Etapa 57 y no entienda esos objetos: los equipos con potencial se leen como "[object Object]" y no se dibujan, mientras que los equipos normales (texto) sí.
+- Arreglo doble: game.js ahora le pasa al motor de capas una vista con ids planos (funciona con cualquier layers.js), y se incluye de nuevo layers.js (versión con idOf) para que ambos queden alineados.
+- Si tras copiar estos dos archivos sigue pasando, avísame con una captura y el id de los equipos.
+Archivos: game.js, layers.js, LEEME.txt
+
+ETAPA 66 - Correcciones de skills de 2º job (SP = 120 por rama: Lv30-69)
+- Cleric: Invincible máx. 20 → 10. Hunter: Soul Arrow máx. 20 → 10. Assassin: Gust Charm máx. 20 → 15. Bandit: Steal máx. 10 → 15. Gunslinger: nueva skill Perseverance (copia de la del Brawler: recupera HP/MP extra con el tiempo, máx. 10).
+- Assassin's Mark y Freezing Crush (I/L) ahora son "regaladas" (flag free): se aprenden solas al cambiar de job y NO consumen SP. (Las partidas que ya las tenían recuperan ese 1 SP.)
+- Crossbowman: Final Attack pedía "cbBowMastery" (no existe); ahora pide Crossbow Mastery nivel 3 (el helper cloneJob2 pisaba el req explícito).
+- Spearman: el buff de Weapon Booster en la barra de buffs mostraba el icono de Hero/Paladin; ahora cada buff usa el icono de la skill que lo lanzó (sim.js guarda b.icon, chars.js lo dibuja).
+- Verificado por código: la suma de maxLevel de las skills de 2º job es 120 en las 12 ramas. Las partidas guardadas con niveles por encima del nuevo máximo se recortan solas y devuelven los SP.
+- Test nuevo: test_sp2.js.
+Archivos: skills.js, sim.js, chars.js, LEEME.txt
+
+ETAPA 67 - Valores de las skills con nivel máximo reducido
+- En la Etapa 66 solo se bajó el nivel máximo; las fórmulas seguían usando el nivel, así que el máximo nuevo daba MENOS que antes. Ahora se reescalan: el nivel máximo nuevo da lo que daba el máximo anterior (función rescale en skills.js).
+  · Invincible Lv10: -25% de daño físico (lo del antiguo Lv20), 400 s. · Soul Arrow Lv10: 30% de chance, 220% de daño. · Gust Charm Lv15: 281% de daño (antes Lv20). · Steal Lv15: 30% de chance, 330% de daño (antes Lv10).
+- test_sp2.js ampliado con estos valores.
+Archivos: skills.js, LEEME.txt
+
+ETAPA 68 - (revertida: la barra de estado con sprites de StatusBar2.img no se usa; se mantiene la barra anterior)
+
+ETAPA 68 - Ventana Equip nueva (UIWindow4.img, anillos a la izquierda)
+  - Equip 232x348 con el sprite de UIWindow4 (assets/ui2/equip_bg.png, ya compuesto). Ranuras de 40x39 en su posición original.
+  - Anillos 1-4 a la izquierda, Weapon/Sub a su lugar, Hat/Top/Bottom/Shoes/Glove/Cape/Earring. Las pestañas CASH/PET/AD y los botones SLOT+/VESSEL son decorativos.
+  - Funciona igual con el modo de selección de cubos/scrolls.
+
+ETAPA 69 - Inventario nuevo, números ItemNo y barra de vida de enemigos
+  - Item Inventory con el sprite de UIWindow2 (172x335): 4 columnas, 6 filas visibles, scroll de fila en fila (rueda/arrastre/barra). Pestañas EQUIP/USE con el estilo de las de UIWindow4.
+  - La cantidad de los items usa los dígitos ItemNo de Basic.img (esquina inferior izquierda de la casilla).
+  - Barra de vida de enemigos nueva (borde blanco, vacío rojo oscuro, lleno verde); 50 px normal, 90 élite, 150 jefe.
+
+ETAPA 70 - Ventanas Stat y Skill nuevas (UIWindow4 / UIWindow2)
+  - Stat: ventana CHARACTER STAT 212x318 (NAME, CLASS, GUILD, FAME, DAMAGE, HP, MP) + panel STATS (LEVEL con % de EXP, STR/DEX/INT/LUK con total (AP + extra)). Botón DETAIL abre DETAILED STATS (212x411): daño, crítico, mín/máx crítico, defensas, precisión, evasión, velocidad, salto; el ataque mágico, daño crítico y esquiva van en el hueco inferior. Boss ATT, Ignore DEF, Status Resistance y Stance muestran 0 (aún sin sistema).
+  - Skill: ventana 174x299 con pestañas Beginner/I/II/III/IV con sus iconos, cabecera azul con el job, filas de 140x35 (activa/gris), SKILL POINT abajo a la derecha. Se mantienen el botón + de SP, la casilla Auto y el tooltip.
+
+ETAPA 71 - Stat con tu diseño (stat_bg / stat_det)
+  - Ventana principal (212x284): NAME, CLASS, LV (con % de EXP), DAMAGE, HP, MP, STR/DEX/INT/LUK (total = AP + extra).
+  - DETAIL (212x218): DAMAGE, CRITICAL CHANCE, CRITICAL DAMAGE, BOSS ATT, IGNORE DEF (0%: aún sin sistema), WEAPON ATT, MAGIC ATT, WEAPON DEF, AVOIDABILITY (esquiva de skills/buffs y su %), ATK SPEED (etapa del arma: Fastest..Slower) y SPEED.
+  - sim.js exporta weaponStage y attackTime.
+
+ETAPA 72 - Tienda: la tecla T abre el menú de categorías
+  - T (y la entrada "Tienda" del menú) abre las 3 tarjetas: Consumibles (pociones), Scrolls (scroll pieces) y Enhance (cubos). Antes T saltaba el menú y abría Consumibles directo.
+  - Corregidos los iconos de las tarjetas (salían vacíos o rotos).
+  - Cada ítem de SHOP lleva cat: 'consumable' | 'scroll' | 'enhance' en items.js; "◀ Categorías" vuelve al menú.
+
+ETAPA 73 - Tienda con el sprite nuevo (UIWindow2 Shop, 465x328)
+  - Dos paneles (compra a la izquierda, venta a la derecha) con filas de 42 px, botones LEAVE SHOP / BUY ITEM / SELL ITEM nuevos, caja de mesos y pestañas ALL / EQUIP / USE.
+  - Las pestañas de venta apagadas no traían imagen en tu .img: las generé en gris a partir de las encendidas.
+  - Las cantidades de venta usan los dígitos ItemNo. El título del panel muestra solo la categoría.
+  - Archivos nuevos en assets/ui2: shop_bg, shop_sel, shop_tab*, btbuy/btsell/btexit_*.
+
+ETAPA 74 - 8 pociones nuevas en la tienda (Consumibles)
+  - White Potion (+500 HP, 350), Mana Elixir (+300 MP, 620), Unagi (+1000 HP, 1000), Pure Water (+800 MP, 1120), Ice Cream Pop (+1500 HP, 1500), Red Bean Sundae (+1500 MP, 2250), Melting Cheese (+2000 HP, 2000), Sunrise Dew (+2000 MP, 3000).
+  - Precio de venta = la mitad del de compra. Se pueden asignar como poción automática de HP/MP desde el inventario (clic en USE).
+  - Iconos en assets/item/<id>.png (white_potion, mana_elixir, unagi, pure_water, ice_cream_pop, red_bean_sundae, melting_cheese, sunrise_dew).

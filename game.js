@@ -34,19 +34,22 @@
           exp: Math.max(0, +c.exp || 0), potions: window.MapleItems.sanitizePotions(c.potions), branch: window.MapleJobs && window.MapleJobs.valid(cls, c.branch) ? c.branch : null, equip: window.MapleItems.sanitize(null, c.equip, cls).equip, skills: window.MapleSkills.sanitize(c.skills), look: c.look && typeof c.look.hair === 'string' && typeof c.look.face === 'string' ? { hair: c.look.hair, face: c.look.face } : null, zones: S.sanitizeZones(c.zones), helpBoss: !!c.helpBoss });
       });
       world.mesos = Math.max(0, +sv.mesos || 0);
+      list.slice(0, 6).forEach(function (c, i) { var ch = world.chars[i]; if (ch && isFinite(c.farmExp) && c.farmExp > 0) { ch.farmExp = +c.farmExp; ch.farmN = Math.max(1, c.farmN | 0); } });   // ritmo de farmeo medido (progreso offline)
+      if (sv.farm && isFinite(sv.farm.mesos)) { world.farm = { n: Math.max(1, sv.farm.n | 0), mesos: Math.max(0, +sv.farm.mesos), items: {} }; Object.keys(sv.farm.items || {}).forEach(function (k) { if (isFinite(sv.farm.items[k]) && sv.farm.items[k] > 0) world.farm.items[k] = +sv.farm.items[k]; }); }
       world.inv = window.MapleItems.sanitize(sv.inv, null).inv;
       S.selectChar(world, Math.min(world.chars.length - 1, Math.max(0, sv.selected | 0)));
       if (sv.leader !== undefined && sv.leader !== null && world.chars[sv.leader | 0]) world.leader = world.chars[sv.leader | 0];
       hasSave = true;
     }
   } catch (e) {}
+  var lastRun = Date.now(), lastSv = lastRun, BG_GAP = 20;   // lastRun: último instante en que la simulación avanzó (el progreso offline mide los huecos de más de BG_GAP s)
   var noSave = !hasSave;   // sin partida (aún no se creó el primer personaje) no se guarda nada; se activa con G.enableSave()
   function enableSave() { noSave = false; }
   function save() {
     if (noSave) return;
     try {
-      localStorage.setItem('maple_save', JSON.stringify({ v: 2, leader: world.leader ? world.chars.indexOf(world.leader) : null, mesos: world.mesos, inv: world.inv, selected: world.selected,
-        chars: world.chars.map(function (c) { return { name: c.name, cls: c.cls, mapId: c.mapId, branch: c.branch || null, level: c.stats.level, exp: c.stats.exp, equip: c.equip, skills: c.skills, potions: c.potions, look: c.look || null, zones: c.zones || {}, helpBoss: !!c.helpBoss }; }) }));
+      localStorage.setItem('maple_save', JSON.stringify({ v: 2, savedAt: lastRun, farm: world.farm || null, leader: world.leader ? world.chars.indexOf(world.leader) : null, mesos: world.mesos, inv: world.inv, selected: world.selected,
+        chars: world.chars.map(function (c) { return { name: c.name, cls: c.cls, mapId: c.mapId, branch: c.branch || null, level: c.stats.level, exp: c.stats.exp, equip: c.equip, skills: c.skills, potions: c.potions, look: c.look || null, zones: c.zones || {}, helpBoss: !!c.helpBoss, farmExp: Math.round((c.farmExp || 0) * 1e4) / 1e4, farmN: c.farmN || 0 }; }) }));
     } catch (e) {}
   }
   function resetGame() {   // borra la partida (y las posiciones de cámara) y recarga
@@ -58,6 +61,7 @@
     visible: function () { var m = world.chars[world.selected].mapId, o = []; world.chars.forEach(function (c, i) { if (c.mapId === m) o.push(i); }); return o; } };
   setInterval(save, 5000);
   addEventListener('beforeunload', save); addEventListener('pagehide', save); document.addEventListener('visibilitychange', function () { if (document.hidden) save(); });
+
   var A = { chars: { warrior: {}, thief: {} }, mob: {}, bg: null, bgs: {} };
   var zoom = 1, speed = 1, debug = false, cam = { x: 0, y: 0 }, keys = {};
 
@@ -292,7 +296,10 @@
   }
   function layeredFrame(ch) {
     var L = window.MapleLayers; if (!L || !L.ready()) return null;
-    var p = ch.player, ms = world.t * 1000, act = 'stand1', fi = 0, loop = true, fixed = null;
+    // el motor de capas solo necesita ids (texto): los equipos con potencial/scrolls son objetos { id, pot, sc }, así que se le pasa una vista con los ids planos
+    var MI = window.MapleItems, pe = {}; for (var sl in ch.equip) if (ch.equip[sl]) pe[sl] = MI ? MI.idOf(ch.equip[sl]) : ch.equip[sl];
+    var ch0 = ch; ch = { cls: ch0.cls, branch: ch0.branch, look: ch0.look || (ch0.look = L.defaultLook(ch0.cls)), equip: pe };
+    var p = ch0.player, ms = world.t * 1000, act = 'stand1', fi = 0, loop = true, fixed = null;
     var tdel = world.cfg.attack.throw.delay / 1000;
     // CORRECCIÓN BRAWLER & ASSASSIN: Manejo de animaciones avanzadas
     var rawAct = p.atk && p.atk.skill ? p.atk.skill.action : null;
@@ -306,7 +313,7 @@
     else if (p.atk) { act = p.atk.name === 'throw' ? throwAction(ch.cls, ch.branch) : (ch.cls === 'pirate' ? 'stabO1' : p.atk.name); fi = p.atk.t / (world.cfg.attack[p.atk.name].delay / 1000); loop = false; }
     else if (p.state === 'climb' && p.ladder) {
       act = p.ladder.l ? 'ladder' : 'rope'; loop = false;
-      if (p.moving) ch._cI = Math.floor(world.t * 1000 / 250) % 2; fixed = ch._cI || 0;
+      if (p.moving) ch0._cI = Math.floor(world.t * 1000 / 250) % 2; fixed = ch0._cI || 0;
     }
     else if (p.state === 'air') { act = 'jump'; loop = false; }
     else if (p.state === 'ground' && (p.dropT > 0 || (p.mv && p.mv.k === 'dash' && p.mv.t < p.mv.wind))) { act = 'prone'; loop = false; fi = 0; }
@@ -458,7 +465,7 @@
     
     if ((m.hp < m.maxHp || m.elite || m.boss) && alpha === 1) {
       var ek = m.elite ? esc : 1, bw = 32 * (m.boss ? 3 : m.elite ? 1.8 : 1), by = y - (set.move && set.move[0] ? set.move[0].height : 32) * ek - 8;
-      ctx.fillStyle = '#300'; ctx.fillRect(m.x - bw / 2, by, bw, m.elite || m.boss ? 6 : 4); ctx.fillStyle = m.boss ? '#ffb02e' : m.elite ? '#ff3b3b' : '#e33'; ctx.fillRect(m.x - bw / 2, by, bw * Math.max(0, m.hp) / m.maxHp, m.elite || m.boss ? 6 : 4);
+      mobBar(m.x, by, m.boss ? 150 : m.elite ? 90 : 50, m.hp / m.maxHp);
       if (m.boss) { ctx.save(); ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; var bn = m.kind.toUpperCase() + ' (JEFE)'; ctx.strokeText(bn, m.x, by - 4); ctx.fillStyle = '#ffd23f'; ctx.fillText(bn, m.x, by - 4); ctx.restore(); }
       if (m.elite) { ctx.save(); ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('ÉLITE', m.x, by - 4); ctx.fillStyle = '#ff6b6b'; ctx.fillText('ÉLITE', m.x, by - 4); ctx.restore(); }
     }
@@ -693,12 +700,47 @@
   function resize() { cv.width = innerWidth; cv.height = innerHeight; }
   addEventListener('resize', resize); resize();
 
-  var last = performance.now(), acc = 0;
-  function frame(now) {
-    acc += Math.min(0.1, (now - last) / 1000) * speed; last = now;
+  /* La simulación NO depende de que la pestaña esté a la vista: en segundo plano la mueve un temporizador de Web Worker (no se frena como los de la página).
+     Si el navegador congela la pestaña (móvil, ahorro de memoria, suspensión del equipo) aparece un hueco > BG_GAP s y se cuenta como ausencia (progreso offline). */
+  var acc = 0, ready = false;
+  function advance(clamp) {
+    var t = Date.now(), gap = (t - lastRun) / 1000; lastRun = t;
+    if (gap > BG_GAP) { acc = 0; applyOffline(gap); return; }
+    acc += (clamp ? Math.min(0.1, gap) : gap) * speed;
     while (acc >= S.STEP) { if (!world.ai.auto) applyManual(); S.step(world, S.STEP); acc -= S.STEP; }
-    updateCam(false); render(); requestAnimationFrame(frame);
+    if (t - lastSv > 10000) { lastSv = t; save(); }   // también en segundo plano: así savedAt es reciente si el navegador mata la pestaña
   }
+  // barra de vida de enemigos (borde blanco + negro, vacío rojo oscuro, lleno verde) — 8 px de alto
+  function mobBar(cx, y, w, f) {
+    var x = Math.round(cx - w / 2), yy = Math.round(y); f = Math.max(0, Math.min(1, f));
+    ctx.fillStyle = '#fff'; ctx.fillRect(x, yy, w, 8); ctx.fillStyle = '#222222'; ctx.fillRect(x + 1, yy + 1, w - 2, 6);
+    var iw = w - 4, gw = f > 0 ? Math.max(1, Math.round(iw * f)) : 0, cols = ['#46060c', '#56060a', '#530805', '#360206'], gc = ['#32d838', '#11f718', '#2edb1d', '#1a8a14'];
+    for (var i = 0; i < 4; i++) { ctx.fillStyle = cols[i]; ctx.fillRect(x + 2, yy + 2 + i, iw, 1); if (gw) { ctx.fillStyle = gc[i]; ctx.fillRect(x + 2, yy + 2 + i, gw, 1); } }
+  }
+  function frame() { advance(true); updateCam(false); render(); requestAnimationFrame(frame); }
+  function bgTick() { if (ready && document.hidden) advance(false); }
+  setInterval(bgTick, 1000);
+  try { var wk = new Worker(URL.createObjectURL(new Blob(['setInterval(function(){postMessage(1)},250)'], { type: 'text/javascript' }))); wk.onmessage = bgTick; wk.onerror = function () {}; } catch (e) {}
   window.MAPLE_GAME.focus = function (i) { curMap(); var p = world.chars[i].player; cam.x = p.x; cam.y = p.y - 80; };
-  loadAll().then(function () { updateCam(true); requestAnimationFrame(frame); });
+  // progreso offline: 25% de lo ganado durante la ausencia (máx. 4 h de ausencia = 1 h de farmeo activo)
+  function fmtT(sec) { var h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); if (m === 60) { h++; m = 0; } return h ? h + ' h' + (m ? ' ' + m + ' min' : '') : m + ' min'; }
+  function showOffline(r) {
+    if (!r || (!r.chars.length && !r.mesos && !r.items.length)) return;
+    var MI = window.MapleItems, st = document.getElementById('off-css');
+    if (!st) { st = document.createElement('style'); st.id = 'off-css'; st.textContent = '#off-ov{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif}#off-ov .b{box-sizing:border-box;width:min(380px,calc(100vw - 20px));max-height:calc(100vh - 20px);overflow:auto;background:#10172c;border:1px solid #ffd23f;border-radius:10px;padding:16px;color:#e8ecf5;box-shadow:0 8px 30px #000a}#off-ov h3{margin:0 0 4px;color:#ffe45c;font-size:17px}#off-ov .s{font-size:12px;color:#9fb0d0;margin-bottom:10px}#off-ov .r{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #ffffff14;font-size:13px}#off-ov .r b{color:#8fdcff;font-weight:600;white-space:nowrap}#off-ov button{margin-top:12px;width:100%;padding:9px;border-radius:7px;border:1px solid #ffd23f;background:#26304f;color:#ffe45c;font-size:14px;cursor:pointer}'; document.head.appendChild(st); }
+    var ov = document.createElement('div'); ov.id = 'off-ov'; var h = '<div class="b"><h3>¡Bienvenido de vuelta!</h3><div class="s">Ausente ' + fmtT(r.absent) + (r.absent > 14400 ? ' (tope 4 h)' : '') + ' → equivale a ' + fmtT(r.eff) + ' de farmeo activo (25%)</div>';
+    r.chars.forEach(function (c) { h += '<div class="r"><span>' + c.name.replace(/[<>&]/g, '') + '</span><b>+' + c.exp.toLocaleString('es') + ' EXP' + (c.l1 > c.l0 ? ' · Lv ' + c.l0 + '→' + c.l1 : '') + '</b></div>'; });
+    if (r.mesos) h += '<div class="r"><span>Mesos</span><b>+' + r.mesos.toLocaleString('es') + '</b></div>';
+    r.items.forEach(function (i) { var it = MI && MI.ITEMS[i.id]; h += '<div class="r"><span>' + (it ? it.name : i.id) + '</span><b>x' + i.n + '</b></div>'; });
+    if (r.lost) h += '<div class="r"><span style="color:#ff8a8a">Inventario lleno</span><b style="color:#ff8a8a">' + r.lost + ' perdidos</b></div>';
+    ov.innerHTML = h + '<button>Aceptar</button></div>'; document.body.appendChild(ov);
+    var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); removeEventListener('keydown', onk, true); }, onk = function (e) { if (e.key === 'Escape' || e.key === 'Enter') { e.stopPropagation(); close(); } };
+    ov.querySelector('button').onclick = close; ov.addEventListener('click', function (e) { if (e.target === ov) close(); }); addEventListener('keydown', onk, true);
+  }
+  function applyOffline(sec) {
+    if (noSave) return; var r = S.offlineGain(world, sec); if (!r) return;
+    world.texts.length = 0; save(); showOffline(r);
+  }
+  window.MAPLE_GAME.applyOffline = applyOffline;
+  loadAll().then(function () { updateCam(true); if (hasSave && sv && sv.savedAt) applyOffline((Date.now() - sv.savedAt) / 1000); lastRun = Date.now(); ready = true; requestAnimationFrame(frame); });
 })();

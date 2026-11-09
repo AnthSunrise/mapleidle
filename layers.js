@@ -73,7 +73,7 @@
   // fotograma listo para dibujar (null si aún se cargan las imágenes)
   function frame(ch, action, f) {
     var look = ch.look || (ch.look = defaultLook(ch.cls)), ids = [], eq = ch.equip || {};
-    Object.keys(eq).sort().forEach(function (s) { if (eq[s]) ids.push(pad(eq[s])); });
+    Object.keys(eq).sort().forEach(function (s) { if (eq[s]) ids.push(pad(eq[s] && typeof eq[s] === 'object' ? eq[s].id : eq[s])); });
     var ready = ensure(BODY) & ensure(HEAD) & ensure(look.face) & ensure(look.hair); ids.forEach(function (id) { ready &= ensure(id); });
     var cp = compOf(action);
     if (cp) {   // acción compuesta (somersault): fotograma de otra acción, girado alrededor del origen y desplazado
@@ -110,7 +110,7 @@
     return D.items[BODY].a[r] || compOf(r) ? r : 'swingO2';   // nunca una acción desconocida (si no, el juego dibujaba el sprite viejo de assets/char)
   }
   function remap0(ch, action) {
-    var w = ch && ch.equip && ch.equip.weapon, it = w && D.items[pad(w)], ch2 = CHAIN[action];
+    var w = ch && ch.equip && ch.equip.weapon, it = w && D.items[pad(typeof w === 'object' ? w.id : w)], ch2 = CHAIN[action];
     if (!it || !it.atlas || !ch2 || weaponFull(it, action)) return action;
     for (var i = 0; i < ch2.length; i++) if (weaponFull(it, ch2[i]) && D.items[BODY].a[ch2[i]]) return ch2[i];
     return action;

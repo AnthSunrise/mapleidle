@@ -48,7 +48,7 @@
   function sign(v) { return v < 0 ? -1 : 1; }
   // velocidad de movimiento del personaje enlazado (base + buffs)
   // bonos de un personaje: pasivas aprendidas + buffs activos. speed/hpPct/mpPct/crit/critDmg en fracción; def en puntos; eva en puntos; range en px; absorb = fracción del daño que paga el MP
-  var MOD_KEYS = ['speed', 'hpPct', 'mpPct', 'hpLv', 'mpLv', 'def', 'eva', 'crit', 'critDmg', 'range', 'absorb', 'att', 'pStr', 'pDex', 'pLuk', 'mastery', 'atkSpeed', 'reflect', 'reflectMax', 'pInt', 'matt', 'hpRec', 'mpRec', 'recT', 'physReduce'];
+  var MOD_KEYS = ['speed', 'hpPct', 'mpPct', 'hpLv', 'mpLv', 'def', 'eva', 'crit', 'critDmg', 'range', 'absorb', 'att', 'pStr', 'pDex', 'pLuk', 'mastery', 'atkSpeed', 'reflect', 'reflectMax', 'pInt', 'matt', 'hpRec', 'mpRec', 'recT', 'physReduce', 'bossPct'];
   function mods(c) {
     var r = {}, SK = root.MapleSkills; MOD_KEYS.forEach(function (k) { r[k] = 0; });
     if (SK && c.skills) SK.ORDER.forEach(function (id) {
@@ -57,6 +57,7 @@
       var f = sk.fx ? sk.fx(st.level) : {}; MOD_KEYS.forEach(function (k) { r[k] += f[k] || 0; });
     });
     (c.buffs || []).forEach(function (b) { if (b.mods) MOD_KEYS.forEach(function (k) { r[k] += b.mods[k] || 0; }); });
+    if (c.equip && SK && root.MapleItems) { var PT = root.MapleItems.potTotals(c.equip); r.crit += PT.crit / 100; r.critDmg += PT.critDmg / 100; r.hpPct += PT.hpP / 100; r.bossPct += PT.boss / 100; }   // potencial del equipo
     return r;
   }
   function spd(w) { return C.WALK * (1 + mods(w.cur).speed); }
@@ -88,6 +89,7 @@
     ch = ch || w.cur;
     var s = ch.stats;
     if (s.level >= MAX_LEVEL) return;
+    ch.xpTot = (ch.xpTot || 0) + amt;   // total ganado (para medir el ritmo de farmeo)
     s.exp += amt;
     while (s.level < MAX_LEVEL && s.exp >= expToNext(s.level)) {
       s.exp -= expToNext(s.level); s.level++;
@@ -100,14 +102,19 @@
   function dropLoot(w, m) {
     var MI = root.MapleItems; if (!MI || !w.inv) return;
     MI.rollDrop(w.stats.level).forEach(function (d, i) {
-      var it = MI.ITEMS[d.id], ok = MI.addItem(w.inv, d.id, d.n);
-      w.texts.push({ x: m.x, y: m.y - 80 - i * 18, txt: ok ? it.name : it.name + ' (inventario lleno)', c: ok ? (it.kind === 'equip' ? '#9dff8a' : '#e6e6e6') : '#ff8a8a', t: 0, life: 1.3 });
+      var it = MI.ITEMS[d.id], ok = MI.addItem(w.inv, d.inst || d.id, d.n); w.itemTot = w.itemTot || {}; w.itemTot[d.id] = (w.itemTot[d.id] || 0) + d.n;
+      w.texts.push({ x: m.x, y: m.y - 80 - i * 18, txt: ok ? it.name : it.name + ' (inventario lleno)', c: ok ? (d.inst && d.inst.pot ? MI.POT_COLORS[d.inst.pot.tier] : it.kind === 'equip' ? '#9dff8a' : '#e6e6e6') : '#ff8a8a', t: 0, life: 1.3 });
     });
   }
   // Enemigos ÉLITE: tras `kills` muertes en un mapa, el siguiente respawn de esa muerte sale como élite (mismo mob, más grande, mucho más HP/EXP/mesos/daño y más drops)
   var ELITE = { kills: 75, hpMul: 15, expMul: 20, mesoMul: 20, dmgMul: 2, scale: 1.5, drops: 5 };
   function eliteCfg(w) { return Object.assign({}, ELITE, w.cfg.elite || {}); }
   var PARTY_BONUS = 0.10;   // +10% de EXP por cada compañero de party en el mapa
+  var EXP_PEN = { from: 21, start: 0.10, step: 0.01, max: 0.60 };   // penalización de EXP por estar muy por encima del enemigo (solo enemigos normales/élites, no jefes)
+  function expPen(lvChar, lvMob) {
+    if (!(lvMob > 0)) return 1; var d = lvChar - lvMob; if (d < EXP_PEN.from) return 1;
+    return 1 - Math.min(EXP_PEN.max, EXP_PEN.start + EXP_PEN.step * (d - EXP_PEN.from));
+  }
   function reward(w, m) {
     var r = w.cfg.mobRewards[m.kind]; if (!r) return;
     var EL = eliteCfg(w), isElite = !!m.elite, isBoss = !!m.boss;
@@ -115,12 +122,17 @@
     // party: los demás reciben 50% si la diferencia de nivel es menor a 25; bono de EXP de party: +PARTY_BONUS por cada miembro extra (para todos)
     var mates = w.chars.filter(function (c) { return c !== w.cur && c.mapId === w.cur.mapId && c.player.state !== 'dead' && Math.abs(c.stats.level - w.cur.stats.level) < 25; });
     xp *= 1 + (w.cfg.partyBonus !== undefined ? w.cfg.partyBonus : PARTY_BONUS) * mates.length;
-    gainExp(w, xp, w.cur);
-    mates.forEach(function (c) { gainExp(w, xp * 0.5, c); });
+    var pf = function (c) { return isBoss ? 1 : expPen(c.stats.level, r.level); }, xpK = xp * pf(w.cur);
+    gainExp(w, xpK, w.cur);
+    mates.forEach(function (c) { gainExp(w, xp * 0.5 * pf(c), c); });
     var meso = (r.meso[0] + Math.floor(Math.random() * (r.meso[1] - r.meso[0] + 1))) * (isElite ? EL.mesoMul : 1);
-    w.mesos += meso;
-    w.texts.push({ x: m.x, y: m.y - 62, txt: '+' + Math.round(xp) + ' EXP   +' + meso + ' mesos', c: isElite || isBoss ? '#ffd23f' : '#8fdcff', t: 0, big: isElite || isBoss });
+    w.mesos += meso; w.mesoTot = (w.mesoTot || 0) + meso;
+    w.texts.push({ x: m.x, y: m.y - 62, txt: '+' + Math.round(xpK) + ' EXP   +' + meso + ' mesos', c: isElite || isBoss ? '#ffd23f' : '#8fdcff', t: 0, big: isElite || isBoss });
     for (var di = 0; di < (isBoss ? (m.boss.drops || 10) : isElite ? EL.drops : 1); di++) dropLoot(w, m);
+    var MI0 = root.MapleItems;   // cubos de potencial: Super Miracle de élites y jefes, Black Cube de jefes
+    if (MI0 && w.inv) [['cube_super', isElite ? 0.08 : isBoss ? 0.30 : 0], ['cube_black', isBoss ? 0.10 : 0]].forEach(function (cd, ci) {
+      if (cd[1] > 0 && Math.random() < cd[1]) { var okc = MI0.addItem(w.inv, cd[0], 1); w.itemTot = w.itemTot || {}; w.itemTot[cd[0]] = (w.itemTot[cd[0]] || 0) + 1; w.texts.push({ x: m.x, y: m.y - 150 - ci * 18, txt: MI0.ITEMS[cd[0]].name + (okc ? '' : ' (inventario lleno)'), c: okc ? '#ffd23f' : '#ff8a8a', t: 0, life: 1.6 }); }
+    });
     var z = w.zone;   // contador de élites por mapa: solo cuentan los enemigos normales
     if (z && w.cfg.elite !== false && !isElite && !isBoss) {
       z.eliteCount = (z.eliteCount || 0) + 1;
@@ -371,7 +383,8 @@
       var cur = c.buffs.filter(function (b) { return b.id === id; })[0];
       var dur = o.duration || B.duration, mods = o.mods || B.mods;
       if (cur) { cur.t = dur; cur.dur = dur; cur.mods = mods; }
-      else c.buffs.push({ id: id, name: B.name, t: dur, dur: dur, mods: mods });
+      else c.buffs.push({ id: id, name: B.name, t: dur, dur: dur, mods: mods, icon: o.icon || null });
+      if (cur && o.icon) cur.icon = o.icon;
       n++;
     });
     return n;
@@ -431,7 +444,7 @@
   var STAGE_MS = [510, 570, 600, 660, 720, 750, 810, 870, 900, 960, 1020, 1020, 1020];
   function boosted(w) { return mods(w.cur).atkSpeed > 0; }
   function weaponStage(w) {
-    var it = root.MapleItems && w.cur.equip && w.cur.equip.weapon && root.MapleItems.ITEMS[w.cur.equip.weapon], s = (it && it.speed) || 6;
+    var it = root.MapleItems && w.cur.equip && w.cur.equip.weapon && root.MapleItems.ITEMS[root.MapleItems.idOf(w.cur.equip.weapon)], s = (it && it.speed) || 6;
     return Math.max(1, Math.min(12, s - (boosted(w) ? 2 : 0)));
   }
   function attackTime(w) { return STAGE_MS[weaponStage(w)] / 1000; }   // segundos por ataque normal
@@ -455,12 +468,21 @@
   }
 
   // crítico: probabilidad = mods.crit; daño x(critMul + critDmg). Devuelve [daño, esCrítico]
-  function rollCrit(w, c, dmg) {
-    var m = mods(c); if (Math.random() < (w.cfg.baseCrit !== undefined ? w.cfg.baseCrit : 0.05) + m.crit) return [Math.max(1, Math.round(dmg * ((w.cfg.critMul || 1.5) + m.critDmg))), true];
+  // ACIERTO: igual o más nivel que el enemigo = 100%; por cada nivel de menos, -5% (mínimo 10%). Solo cuenta el nivel (no el build: ni DEX ni LUK)
+  var ACC = { perLevel: 0.05, min: 0.10 };
+  function hitChance(w, c, mob) {
+    if (!mob) return 1; var r = w.cfg.mobRewards[mob.kind] || {}, gap = (r.level || 1) - c.stats.level;
+    return gap <= 0 ? 1 : Math.max(ACC.min, 1 - ACC.perLevel * gap);
+  }
+  function rollCrit(w, c, dmg, mob) {
+    if (mob) { var hc = hitChance(w, c, mob); if (hc < 1 && Math.random() >= hc) { w.texts.push({ x: mob.x, y: mob.y - 40, txt: 'MISS', c: '#e6e6e6', t: 0, life: 0.8, num: 'miss' }); w.missHits = (w.missHits || 0) + 1; return [0, false, true]; } }
+    var m = mods(c); if (mob && mob.boss && m.bossPct) dmg = Math.round(dmg * (1 + m.bossPct));   // potencial: Boss Monster Damage
+    if (Math.random() < (w.cfg.baseCrit !== undefined ? w.cfg.baseCrit : 0.05) + m.crit) return [Math.max(1, Math.round(dmg * ((w.cfg.critMul || 1.5) + m.critDmg))), true];
     return [dmg, false];
   }
   function damageMob(w, m, dmg, color) {
-    var p = w.player, cr = rollCrit(w, w.cur, dmg); dmg = cr[0];
+    var p = w.player, cr = rollCrit(w, w.cur, dmg, m); dmg = cr[0];
+    if (cr[2]) return;   // falló: sin daño ni retroceso
     m.hp -= dmg; w.texts.push({ x: m.x, y: m.y - 40, txt: String(dmg), c: color, t: 0, num: cr[1] ? 'cri' : 'red' });
     if (m.hp <= 0) { m.state = 'dying'; m.t = 0; w.kills++; reward(w, m); w.killsByNode[m.node.i] = (w.killsByNode[m.node.i] || 0) + 1; }
     else { m.state = 'hit'; m.t = 0.3; m.x = clamp(m.x + p.dir * 6, m.node.minX + 10, m.node.maxX - 10); }
@@ -586,7 +608,7 @@
            var m = c.m ? c.m : c;
            if (!alive(m)) return;
            var dmg = Math.max(1, Math.round((stStats.min + Math.floor(Math.random() * (stStats.max - stStats.min + 1))) * BD.damage(st.level) / 100));
-           var cr = rollCrit(w, owner, dmg);
+           var cr = rollCrit(w, owner, dmg, m);
            dmg = cr[0];
            m.hp -= dmg;
            w.texts.push({ x: m.x, y: m.y - 70, txt: String(dmg), c: '#ffdd00', t: 0, num: cr[1] ? 'cri' : 'red' });
@@ -604,7 +626,7 @@
                if (dx < BD.splashRange.x1 || dx > BD.splashRange.x2 || dy < BD.splashRange.y1 || dy > BD.splashRange.y2) return;
                n++;
                var sdmg = Math.max(1, Math.round((stStats.min + Math.floor(Math.random() * (stStats.max - stStats.min + 1))) * BD.damage(st.level) / 100 * (BD.splashFalloff || 0.7)));
-               var scr = rollCrit(w, owner, sdmg); sdmg = scr[0];
+               var scr = rollCrit(w, owner, sdmg, em); sdmg = scr[0];
                em.hp -= sdmg;
                w.texts.push({ x: em.x, y: em.y - 70, txt: String(sdmg), c: '#ffdd00', t: 0, num: scr[1] ? 'cri' : 'red' });
                w.fx.push({ kind: 'hit', id: 'bdSteal', life: BD.hit.length * (BD.hitDelay || 90) / 1000, x: em.x, y: em.y - 18, t: 0 });
@@ -633,7 +655,7 @@
       if (dx < sk.range.x1 - 15 || dx > sk.range.x2 + 15 || (q.x - m.x) * q.dir < -6) return;
       if (m.y < q.py + sk.range.y1 || m.y - 34 > q.py + sk.range.y2) return;
       q.hits.push(m); bind(w, q.owner);
-      var st = cstats(w), dmg = Math.max(1, Math.round((st.min + Math.floor(Math.random() * (st.max - st.min + 1))) * sk.damage(q.lv) / 100)), cr = rollCrit(w, q.owner, dmg); dmg = cr[0];
+      var st = cstats(w), dmg = Math.max(1, Math.round((st.min + Math.floor(Math.random() * (st.max - st.min + 1))) * sk.damage(q.lv) / 100)), cr = rollCrit(w, q.owner, dmg, m); dmg = cr[0];
       m.hp -= dmg; mpEat(w, m, q.owner);
       w.texts.push({ x: m.x, y: m.y - 40, txt: String(dmg), c: '#ffb347', t: 0, num: cr[1] ? 'cri' : 'red' });
       w.fx.push({ kind: 'hit', id: sk.id, life: sk.hit.length * sk.hitDelay / 1000, x: m.x, y: m.y - 18, t: 0 });
@@ -671,7 +693,7 @@
         var dx = m.x - f.x, dy = m.y - f.y;
         if (dx < sk.area.x1 - 12 || dx > sk.area.x2 + 12 || dy < sk.area.y1 - 20 || dy > sk.area.y2 + 20) return;
         n++;
-        var dmg = Math.max(1, Math.round((st.min + Math.floor(Math.random() * (st.max - st.min + 1))) * sk.damage(f.lv) / 100)), cr = rollCrit(w, f.owner, dmg); dmg = cr[0];
+        var dmg = Math.max(1, Math.round((st.min + Math.floor(Math.random() * (st.max - st.min + 1))) * sk.damage(f.lv) / 100)), cr = rollCrit(w, f.owner, dmg, m); dmg = cr[0];
         m.hp -= dmg;
         w.texts.push({ x: m.x, y: m.y - 40, txt: String(dmg), c: '#ff9a4a', t: 0, num: cr[1] ? 'cri' : 'red' });
         w.fx.push({ kind: 'hit', id: sk.id, life: sk.hit.length * sk.hitDelay / 1000, x: m.x, y: m.y - 18, t: 0 });
@@ -698,7 +720,7 @@
         var m2 = q.target;
         if (!alive(m2)) { q.next = q.dmg.length; break; }
         bind(w, q.owner);   // la EXP y los drops van a quien lanzó la estrella
-        var cr2 = rollCrit(w, q.owner, q.dmg[q.next]); q.dmg[q.next] = cr2[0];
+        var cr2 = rollCrit(w, q.owner, q.dmg[q.next], m2); q.dmg[q.next] = cr2[0];
         w.texts.push({ x: m2.x + (((q.stack || 0) + q.next) % 2 ? 6 : -6), y: m2.y - 40 - ((q.stack || 0) + q.next) * DMG_STEP, txt: String(q.dmg[q.next]), c: q.skillFx ? '#ffb347' : '#ffd23f', t: 0, num: cr2[1] ? 'cri' : 'red' });
         if (q.skillFx) w.fx.push({ kind: 'sk', id: q.skillFx, tier: q.tier, x: m2.x, y: m2.y - 18, t: 0 }); else if (q.hitFx) { var HS = root.MapleSkills.SKILLS[q.hitFx]; w.fx.push({ kind: 'hit', id: q.hitFx, life: HS.hit.length * HS.hitDelay / 1000, x: m2.x, y: m2.y - 18, t: 0 }); } else w.fx.push({ kind: 'spark', x: m2.x, y: m2.y - 18, t: 0 });
         m2.hp -= q.dmg[q.next]; q.next++;
@@ -719,7 +741,7 @@
                if (dx >= skProj.splashRange.x1 && dx <= skProj.splashRange.x2 && dy >= skProj.splashRange.y1 && dy <= skProj.splashRange.y2) {
                  hitCount++;
                  var splashMul = q.noSplashFalloff ? 1.0 : 0.8;
-                 var crS = rollCrit(w, q.owner, Math.max(1, Math.round((q.maxDmg * splashMul) * skProj.damage(q.lv) / 100)));
+                 var crS = rollCrit(w, q.owner, Math.max(1, Math.round((q.maxDmg * splashMul) * skProj.damage(q.lv) / 100)), em);
                  var bdmg = crS[0]; em.hp -= bdmg;
                  w.texts.push({ x: em.x, y: em.y - 40, txt: String(bdmg), c: '#ffb347', t: 0, num: crS[1] ? 'cri' : 'red' });
 				 markHit(w, em, q.owner, q.noMark);
@@ -861,7 +883,7 @@
   }
   function doBuffCast(w, atk) {
     var sk = atk.skill;
-    applyBuff(w, w.cur, sk.buff, { duration: sk.duration(atk.level), mods: sk.mods(atk.level) });
+    applyBuff(w, w.cur, sk.buff, { duration: sk.duration(atk.level), mods: sk.mods(atk.level), icon: sk.icon });
   }
   function doSummonCast(w, atk) {
     var sk = atk.skill;
@@ -916,7 +938,7 @@
           if (mdx <= sm.sk.range.x2 && mdy <= sm.sk.range.y2) {
             hitCount++;
             var dmg = Math.max(1, Math.round((st.min + Math.floor(Math.random() * (st.max - st.min + 1))) * sm.sk.damage(sm.lv) / 100));
-            var cr = rollCrit(w, c, dmg); dmg = cr[0];
+            var cr = rollCrit(w, c, dmg, m); dmg = cr[0];
             m.hp -= dmg;
             w.texts.push({ x: m.x, y: m.y - 40, txt: String(dmg), c: '#ffb347', t: 0, num: cr[1] ? 'cri' : 'red' });
             if (sm.sk.prop && Math.random() * 100 < sm.sk.prop(sm.lv)) m.stun = { t: 3, id: sm.sk.id };
@@ -1026,7 +1048,7 @@
             if (k === sk.attackCount - 1) m.freezeStack = null; // El rayo consume la carga en el último golpe
         }
 
-        var cr3 = rollCrit(w, w.cur, dmg); dmg = cr3[0];
+        var cr3 = rollCrit(w, w.cur, dmg, m); dmg = cr3[0];
         m.hp -= dmg; mpEat(w, m, w.cur); markHit(w, m, w.cur);
         w.texts.push({ x: m.x, y: m.y - 40 - k * DMG_STEP, txt: String(dmg), c: '#ffb347', t: 0, num: cr3[1] ? 'cri' : 'red' });
       }
@@ -1586,8 +1608,37 @@
     w.texts = w.texts.filter(function (tx) { return tx.t < (tx.life || 0.8); });
   }
 
+  /* ---------- progreso offline ----------
+   * Mientras se juega se mide el ritmo de farmeo (EXP por personaje, mesos y objetos por segundo; media móvil de ~15 min).
+   * Al volver tras estar ausente se concede el 25% de lo que se habría ganado, con un máximo de 4 h de ausencia (= 1 h de farmeo activo). */
+  var OFFLINE = { cap: 4 * 3600, rate: 0.25, min: 60 }, FARM_TICK = 10, FARM_WIN = 900;
+  function ema(old, inst, n) { return (old || 0) + (inst - (old || 0)) * Math.max(FARM_TICK / FARM_WIN, 1 / n); }
+  function sampleRates(w) {
+    var F = w.farm || (w.farm = { n: 0, mesos: 0, items: {} }), L = w.farmLast || (w.farmLast = { mesos: 0, items: {} });
+    F.n++; F.mesos = ema(F.mesos, ((w.mesoTot || 0) - L.mesos) / FARM_TICK, F.n); L.mesos = w.mesoTot || 0;
+    var tot = w.itemTot || {}, ids = {}; Object.keys(tot).forEach(function (k) { ids[k] = 1; }); Object.keys(F.items).forEach(function (k) { ids[k] = 1; });
+    Object.keys(ids).forEach(function (k) { F.items[k] = ema(F.items[k], ((tot[k] || 0) - (L.items[k] || 0)) / FARM_TICK, F.n); L.items[k] = tot[k] || 0; if (F.items[k] < 1e-8) delete F.items[k]; });
+    w.chars.forEach(function (c) { c.farmN = (c.farmN || 0) + 1; c.farmExp = ema(c.farmExp, ((c.xpTot || 0) - (c.xpLast || 0)) / FARM_TICK, c.farmN); c.xpLast = c.xpTot || 0; });
+  }
+  // concede el progreso de una ausencia de `absent` segundos; devuelve el resumen (o null si fue muy corta / no hay ritmo medido)
+  function offlineGain(w, absent) {
+    if (!(absent >= OFFLINE.min)) return null;
+    var eff = Math.min(absent, OFFLINE.cap) * OFFLINE.rate, F = w.farm, MI = root.MapleItems, res = { absent: absent, eff: eff, chars: [], mesos: 0, items: [], lost: 0 };
+    w.chars.forEach(function (c) {
+      var amt = (c.farmExp || 0) * eff; if (!(amt > 0)) return;
+      var l0 = c.stats.level, e0 = c.stats.exp || 0;
+      if (l0 < MAX_LEVEL) amt = Math.min(amt, Math.max(0, expToNext(l0) - 1 - e0));   // offline nunca sube de nivel: como mucho llena la barra
+      else amt = 0;
+      amt = Math.floor(amt); if (!(amt > 0)) return;
+      gainExp(w, amt, c);
+      c.xpLast = c.xpTot || 0; res.chars.push({ name: c.name, exp: amt, l0: l0, l1: c.stats.level });
+    });
+    if (F) { res.mesos = Math.round((F.mesos || 0) * eff); w.mesos += res.mesos; }   // solo EXP y mesos (sin objetos)
+    return res;
+  }
   function step(w, dt) {
     w.t += dt;
+    w.farmT = (w.farmT || 0) + dt; if (w.farmT >= FARM_TICK) { w.farmT -= FARM_TICK; sampleRates(w); }
     w.chars.forEach(function (c) {
       bind(w, c);
 	  if (w.cur.skillCd) for (var k in w.cur.skillCd) if (w.cur.skillCd[k] > 0) w.cur.skillCd[k] -= dt;
@@ -1607,6 +1658,7 @@
       stepProj(w, dt);
       z.fx = w.fx; z.texts = w.texts; z.proj = w.proj;   // stepFx/stepMobs reasignan los arreglos filtrados
     });
+    Object.keys(w.zones).forEach(function (id) { var tx = w.zones[id].texts; for (var i = tx.length - 1; i >= 0; i--) if (tx[i].txt === '0') tx.splice(i, 1); });   // golpes fallados: ya salió "MISS", no un "0"
     bind(w, w.chars[w.selected]);
   }
 
@@ -1632,7 +1684,7 @@
     });
   }
 
-  var api = { ELITE: ELITE, mapLimit: mapLimit, mapCount: mapCount, PARTY_BONUS: PARTY_BONUS, cstatsOf: cstatsOf, C: C, createWorld: createWorld, step: step, STEP: C.STEP, bfs: bfs, alive: alive, expToNext: expToNext, maxHp: maxHp, MAX_LEVEL: MAX_LEVEL, addCharacter: addCharacter, setLeader: setLeader, mods: mods, advanceJob: advanceJob, advanceCheck: advanceCheck, skillAllowed: skillAllowed, selectChar: selectChar, travel: travel, applyBuff: applyBuff, setZone: setZone, zoneOf: zoneOf, sanitizeZones: sanitizeZones };
+  var api = { weaponStage: weaponStage, attackTime: attackTime, EXP_PEN: EXP_PEN, expPen: expPen, ACC: ACC, hitChance: hitChance, OFFLINE: OFFLINE, offlineGain: offlineGain, sampleRates: sampleRates, ELITE: ELITE, mapLimit: mapLimit, mapCount: mapCount, PARTY_BONUS: PARTY_BONUS, cstatsOf: cstatsOf, C: C, createWorld: createWorld, step: step, STEP: C.STEP, bfs: bfs, alive: alive, expToNext: expToNext, maxHp: maxHp, MAX_LEVEL: MAX_LEVEL, addCharacter: addCharacter, setLeader: setLeader, mods: mods, advanceJob: advanceJob, advanceCheck: advanceCheck, skillAllowed: skillAllowed, selectChar: selectChar, travel: travel, applyBuff: applyBuff, setZone: setZone, zoneOf: zoneOf, sanitizeZones: sanitizeZones };
   root.MapleSim = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -28,14 +28,14 @@
   var list = el('div', 'mc-list'); document.body.appendChild(list);
   var MAPS = window.MAPLE_MAPS || {};
   var BUFFS = (window.MapleBuffs || {}).BUFFS || {};
-  function buffIcon(id, size) {
+  function buffIcon(id, size, icon) {
     var B = BUFFS[id] || { letter: '?', color: '#888' }, box = el('span', 'mc-bi'); box.style.width = box.style.height = size + 'px';
     var im = new Image(); im.draggable = false; im.onerror = function () { im.remove(); box.style.background = B.color || '#888'; box.textContent = B.letter || '?'; box.style.fontSize = Math.round(size * 0.6) + 'px'; };
-    im.src = B.icon || ''; im.style.cssText = 'width:100%;height:100%;image-rendering:pixelated'; box.appendChild(im); box.title = (B.name || id) + (B.desc ? ' — ' + B.desc : ''); return box;
+    im.src = icon || B.icon || ''; im.style.cssText = 'width:100%;height:100%;image-rendering:pixelated'; box.appendChild(im); box.title = (B.name || id) + (B.desc ? ' — ' + B.desc : ''); return box;
   }
   function buffRow(c, size) {
     var row = el('div', 'mc-bf');
-    c.buffs.forEach(function (b) { var w = el('span', 'mc-bw'); w.appendChild(buffIcon(b.id, size)); var t = el('span', 'mc-bt'); t.dataset.c = world.chars.indexOf(c); t.dataset.b = b.id; t.textContent = Math.ceil(b.t) + 's'; w.appendChild(t); row.appendChild(w); });
+    c.buffs.forEach(function (b) { var w = el('span', 'mc-bw'); w.appendChild(buffIcon(b.id, size, b.icon)); var t = el('span', 'mc-bt'); t.dataset.c = world.chars.indexOf(c); t.dataset.b = b.id; t.textContent = Math.ceil(b.t) + 's'; w.appendChild(t); row.appendChild(w); });
     return row;
   }
   // La lista lateral muestra solo a los personajes del mapa que estás viendo (con sus buffs). El manager (C) lista a todos.
