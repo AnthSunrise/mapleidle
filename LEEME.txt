@@ -819,3 +819,6 @@ ETAPA 87e - Tooltips, máscaras y reglas de equipo
 
 ETAPA 87f - Documentación de traspaso
   - docs/07_EQUIPOS_MASIVOS.md (nuevo), docs/04 (PENDIENTES ACTUALES), docs/00, docs/05, docs/GUIA_AGREGAR_ITEMS.md actualizados.
+
+ETAPA 88 - Etiqueta de nombre estilo MapleStory (game.js)
+  - Caja negra 66% opaca con esquinas cortadas, texto blanco 12px sin borde, bajo los pies. El personaje seleccionado conserva el texto amarillo.

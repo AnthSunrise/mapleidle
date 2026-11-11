@@ -283,11 +283,14 @@
         drawSummon(c); // <-- Dibuja el halcón justo después del personaje
       }
     });
-    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3;
+    // etiqueta de nombre como en MapleStory: caja negra (66% opaca) con las esquinas cortadas 1px y texto blanco sin borde, bajo los pies
+    ctx.font = '12px Tahoma, Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     world.chars.forEach(function (c, i) {
-      if (c.mapId !== world.mapId) return;   // etiqueta de nombre bajo los pies
-      ctx.strokeStyle = '#000'; ctx.strokeText(c.name, c.player.x, c.player.y + 14);
-      ctx.fillStyle = i === world.selected ? '#ffe45c' : '#fff'; ctx.fillText(c.name, c.player.x, c.player.y + 14);
+      if (c.mapId !== world.mapId) return;
+      var tw = Math.ceil(ctx.measureText(c.name).width), w = tw + 9, h = 16, x = Math.round(c.player.x - w / 2), y = Math.round(c.player.y + 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.66)';
+      ctx.beginPath(); ctx.moveTo(x + 1, y); ctx.lineTo(x + w - 1, y); ctx.lineTo(x + w, y + 1); ctx.lineTo(x + w, y + h - 1); ctx.lineTo(x + w - 1, y + h); ctx.lineTo(x + 1, y + h); ctx.lineTo(x, y + h - 1); ctx.lineTo(x, y + 1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = i === world.selected ? '#ffe45c' : '#fff'; ctx.fillText(c.name, Math.round(c.player.x), y + 12);
     });
   }
   function drawTomb(c) {   // lápida con cuenta regresiva mientras el personaje está muerto
