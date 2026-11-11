@@ -4,9 +4,10 @@
  * assets/item/<id>.png (ej: assets/item/sword_1.png); si no existe, se ve un cuadro de color. */
 (function (root) {
   'use strict';
-  var SLOTS = ['hat', 'top', 'bottom', 'glove', 'shoes', 'cape', 'ring1', 'ring2', 'ring3', 'ring4', 'earring', 'weapon', 'sub'];
-  var SLOT_LABEL = { hat: 'Hat', top: 'Top', bottom: 'Bottom', glove: 'Glove', shoes: 'Shoes', cape: 'Cape', ring1: 'Ring', ring2: 'Ring', ring3: 'Ring', ring4: 'Ring', earring: 'Earring', weapon: 'Weapon', sub: 'Sub' };
-  var TYPE_SLOTS = { hat: ['hat'], top: ['top'], bottom: ['bottom'], glove: ['glove'], shoes: ['shoes'], cape: ['cape'], ring: ['ring1', 'ring2', 'ring3', 'ring4'], earring: ['earring'], weapon: ['weapon'], sub: ['sub'] };
+  function $t(x) { var a = arguments, f = root.$t; if (f) return f.apply(null, a); return String(x).replace(/\{(\d+)\}/g, function (m, i) { return a[+i + 1] !== undefined ? a[+i + 1] : m; }); }   // idioma (i18n.js); sin DOM/idioma devuelve el español
+  var SLOTS = ['hat', 'top', 'bottom', 'glove', 'shoes', 'cape', 'ring1', 'ring2', 'ring3', 'ring4', 'earring', 'pendant1', 'pendant2', 'belt', 'faceacc', 'eyeacc', 'shoulder', 'weapon', 'sub'];
+  var SLOT_LABEL = { hat: 'Hat', top: 'Top', bottom: 'Bottom', glove: 'Glove', shoes: 'Shoes', cape: 'Cape', ring1: 'Ring', ring2: 'Ring', ring3: 'Ring', ring4: 'Ring', earring: 'Earring', pendant1: 'Pendant', pendant2: 'Pendant', belt: 'Belt', faceacc: 'Face Acc', eyeacc: 'Eye Acc', shoulder: 'Shoulder', weapon: 'Weapon', sub: 'Sub' };
+  var TYPE_SLOTS = { hat: ['hat'], top: ['top'], bottom: ['bottom'], glove: ['glove'], shoes: ['shoes'], cape: ['cape'], ring: ['ring1', 'ring2', 'ring3', 'ring4'], earring: ['earring'], pendant: ['pendant1', 'pendant2'], belt: ['belt'], faceacc: ['faceacc'], eyeacc: ['eyeacc'], shoulder: ['shoulder'], weapon: ['weapon'], sub: ['sub'] };
   var INV_SIZE = 128, STACK_MAX = 9999, BARE_ATT = 10;
   var ITEMS = {};
   function eq(id, name, type, lv, st, cls) { ITEMS[id] = { id: id, name: name, kind: 'equip', type: type, lv: lv, stats: st, cls: cls || null }; }   // cls = clase que puede usarlo (null = todas)
@@ -37,17 +38,17 @@
   // ids de las pruebas/guardados anteriores -> equipo real equivalente
   var ALIAS = { sword_1: '1302077', sword_2: '1302183', sword_3: '1302043', sword_4: '1302211', claw_1: '1472061', claw_2: '1472003', claw_3: '1472006', claw_4: '1472093' };
   function startEquip(cls) { var c = CLASSES[cls || 'warrior']; return { top: '1052646', shoes: '1072850', weapon: c.weapon }; }
-  use('red_potion', 'Red Potion', 'Recupera 100 HP. Clic para asignarla como poción de HP del personaje seleccionado.', { hp: 100 });
-  use('blue_potion', 'Blue Potion', 'Recupera 100 MP. Clic para asignarla como poción de MP del personaje seleccionado.', { mp: 100 });
-  use('white_potion', 'White Potion', 'Recupera 500 HP. Clic para asignarla como poción de HP del personaje seleccionado.', { hp: 500 });
-  use('mana_elixir', 'Mana Elixir', 'Recupera 300 MP. Clic para asignarla como poción de MP del personaje seleccionado.', { mp: 300 });
-  use('unagi', 'Unagi', 'Recupera 1000 HP. Clic para asignarla como poción de HP del personaje seleccionado.', { hp: 1000 });
-  use('pure_water', 'Pure Water', 'Recupera 800 MP. Clic para asignarla como poción de MP del personaje seleccionado.', { mp: 800 });
-  use('ice_cream_pop', 'Ice Cream Pop', 'Recupera 1500 HP. Clic para asignarla como poción de HP del personaje seleccionado.', { hp: 1500 });
-  use('red_bean_sundae', 'Red Bean Sundae', 'Recupera 1500 MP. Clic para asignarla como poción de MP del personaje seleccionado.', { mp: 1500 });
-  use('melting_cheese', 'Melting Cheese', 'Recupera 2000 HP. Clic para asignarla como poción de HP del personaje seleccionado.', { hp: 2000 });
-  use('sunrise_dew', 'Sunrise Dew', 'Recupera 2000 MP. Clic para asignarla como poción de MP del personaje seleccionado.', { mp: 2000 });
-  use('scroll_piece', 'Scroll Piece', 'Se canjea por scrolls en la tienda.');
+  use('red_potion', 'Red Potion', $t('Recupera {0} HP. Clic para asignarla como poción de HP del personaje seleccionado.', 100), { hp: 100 });
+  use('blue_potion', 'Blue Potion', $t('Recupera {0} MP. Clic para asignarla como poción de MP del personaje seleccionado.', 100), { mp: 100 });
+  use('white_potion', 'White Potion', $t('Recupera {0} HP. Clic para asignarla como poción de HP del personaje seleccionado.', 500), { hp: 500 });
+  use('mana_elixir', 'Mana Elixir', $t('Recupera {0} MP. Clic para asignarla como poción de MP del personaje seleccionado.', 300), { mp: 300 });
+  use('unagi', 'Unagi', $t('Recupera {0} HP. Clic para asignarla como poción de HP del personaje seleccionado.', 1000), { hp: 1000 });
+  use('pure_water', 'Pure Water', $t('Recupera {0} MP. Clic para asignarla como poción de MP del personaje seleccionado.', 800), { mp: 800 });
+  use('ice_cream_pop', 'Ice Cream Pop', $t('Recupera {0} HP. Clic para asignarla como poción de HP del personaje seleccionado.', 1500), { hp: 1500 });
+  use('red_bean_sundae', 'Red Bean Sundae', $t('Recupera {0} MP. Clic para asignarla como poción de MP del personaje seleccionado.', 1500), { mp: 1500 });
+  use('melting_cheese', 'Melting Cheese', $t('Recupera {0} HP. Clic para asignarla como poción de HP del personaje seleccionado.', 2000), { hp: 2000 });
+  use('sunrise_dew', 'Sunrise Dew', $t('Recupera {0} MP. Clic para asignarla como poción de MP del personaje seleccionado.', 2000), { mp: 2000 });
+  use('scroll_piece', 'Scroll Piece', $t('Se canjea por scrolls en la tienda.'));
 
   // Precio de venta al NPC (provisional salvo las pociones): pociones 50% del precio de compra; equipo según nivel
   ITEMS.red_potion.sell = 50; ITEMS.blue_potion.sell = 25; ITEMS.scroll_piece.sell = 20;
@@ -78,7 +79,7 @@
     // Mage (magia): INT principal, LUK secundario; el daño sale del ATT MÁGICO (matt) del arma
     mage: { label: 'Mage', weapon: '1382100', mult: 4.02, cal: 1.334, minR: 0.25, magic: true, main: 'int', sub: 'luk', post: { str: 4, dex: 1, int: 5, luk: 0 }, defMul: 0.72 },
     archer: { label: 'Archer', weapon: '1452051', mult: 4.36, cal: 1.663, minR: 0.15, main: 'dex', sub: 'str', post: { str: 4, dex: 6, int: 0, luk: 0 } },
-    pirate: { label: 'Pirate', weapon: '1482000', mult: 10.88, cal: 1.238, minR: 0.2, main: 'str', sub: 'dex', post: { str: 9, dex: 1, int: 0, luk: 0 } },
+    pirate: { label: 'Pirate', weapon: '1482000', mult: 6.185, starAtt: 13.6, cal: 1.238, minR: 0.2, main: 'str', sub: 'dex', post: { str: 9, dex: 1, int: 0, luk: 0 } },
     thief: { label: 'Thief', weapon: '1472061', mult: 3.74, cal: 2.16, minR: 0.15, starAtt: 15, main: 'luk', sub: 'dex', post: { str: 4, dex: 1, int: 0, luk: 5 } }
   };
 
@@ -91,6 +92,12 @@
     if (cls === 'pirate' && branch === 'gunslinger') { var t0 = o.str; o.str = o.dex; o.dex = t0; }
     return o;
   }
+  // Requisitos de stat de los equipos importados: el reparto de AP es automático (solo el stat principal sube), así que un requisito mayor que el AP posible a ese nivel se limita a ese tope (si no, el objeto sería imposible de equipar).
+  Object.keys(ITEMS).forEach(function (id) {
+    var it = ITEMS[id]; if (it.kind !== 'equip' || !it.req || !it.cls || it.only || !CLASSES[it.cls]) return;
+    var a = apStats(it.lv, it.cls), g = it.cls === 'pirate' ? apStats(it.lv, 'pirate', 'gunslinger') : a;
+    for (var r = 0; r < 4; r++) { var k2 = STATK[r], cap = Math.max(a[k2], g[k2]); if (it.req[r] > cap) it.req[r] = cap; }
+  });
   function calcStats(level, equip, cls, branch, bonus) {
     var c = CLASSES[cls || 'warrior'], s = { str: 0, dex: 0, int: 0, luk: 0, att: 0, matt: 0, def: 0, mhp: 0, mmp: 0, acc: 0, eva: 0 };
     var ap = apStats(level, cls, branch); s.ap = { str: ap.str, dex: ap.dex, int: ap.int, luk: ap.luk };   // AP (inicial + por nivel); el resto del total es externo (equipo, pasivas, buffs)
@@ -99,7 +106,7 @@
     s.baseStr = 4 + (c.main === 'str' ? 6 * Math.min(level - 1, 9) : 0) + Math.floor(c.post.str * Math.max(0, level - 10) + 1e-9);
     if (bonus) { s.str += bonus.str || 0; s.dex += bonus.dex || 0; s.int += bonus.int || 0; s.luk += bonus.luk || 0; s.matt += bonus.matt || 0; }   // pasivas (Physical Training...); el STR/DEX base de la DEF no cambia
     // Pirate Gunslinger: stat principal DEX (los AP de STR pasan a DEX) y secundario STR; mult de pistola provisional
-    if (cls === 'pirate' && branch === 'gunslinger') c = Object.assign({}, c, { main: 'dex', sub: 'str', mult: GS_MULT });   // los AP ya vienen intercambiados (apStats)
+    if (cls === 'pirate' && branch === 'gunslinger') c = Object.assign({}, c, { main: 'dex', sub: 'str', mult: GS_MULT, starAtt: 0 });   // los AP ya vienen intercambiados (apStats)
     SLOTS.forEach(function (sl) {
       var it = ITEMS[idOf(equip && equip[sl])]; if (!it) return; var est = statsOf(equip[sl]);   // base + scrolls
       for (var k in est) s[k] = (s[k] || 0) + est[k];
@@ -166,38 +173,51 @@
     return id;
   }
   function toInst(x) { return x && typeof x === 'object' ? x : { id: x }; }   // instancia editable (convierte el texto en objeto)
+  // Tipos de arma (prefijo del id: 130 espada 1M, 131 hacha 1M, 132 maza 1M, 133 daga, 137 wand, 138 staff, 140 espada 2M, 141 hacha 2M, 142 maza 2M, 143 lanza, 144 polearm, 145 arco, 146 ballesta, 147 claw, 148 knuckle, 149 pistola).
+  var CLS_WEAPONS = { warrior: [130, 131, 132, 140, 141, 142, 143, 144], mage: [137, 138], archer: [145, 146], thief: [133, 147], pirate: [148, 149] };
+  var BRANCH_WEAPONS = { fighter: [130, 131, 140, 141], page: [130, 132, 142], spearman: [143, 144], hunter: [145], crossbowman: [146], assassin: [147], bandit: [133], brawler: [148], gunslinger: [149] };
+  function isTwoHanded(it) { var p = it && it.type === 'weapon' ? Math.floor(+it.id / 10000) : 0; return p >= 140 && p <= 144; }   // espada/hacha/maza a 2 manos, lanza y polearm
+  function weaponAllowed(it, cls, branch) {
+    if (it.type !== 'weapon' || !cls) return true;
+    var p = Math.floor(+it.id / 10000), l = (branch && BRANCH_WEAPONS[branch]) || CLS_WEAPONS[cls];
+    return !l || l.indexOf(p) >= 0;
+  }
   // Equipar: clase, nivel y stats base (sin equipo) mínimos. Un overall (Longcoat) ocupa Top y Bottom: al equiparlo el Bottom vuelve al inventario y al revés.
   function equipItem(inv, equip, level, idx, cls, branch) {
     var inst = inv.equip[idx], id = idOf(inst), it = ITEMS[id];
-    if (!it) return { ok: false, msg: 'Slot vacío' };
-    if (it.cls && cls && it.cls !== cls) return { ok: false, msg: it.name + ': solo para ' + (CLASSES[it.cls] ? CLASSES[it.cls].label : it.cls) };
-    if (it.only && branch !== it.only) return { ok: false, msg: it.name + ': solo para ' + it.only.charAt(0).toUpperCase() + it.only.slice(1) };
-    if (level < it.lv) return { ok: false, msg: it.name + ': requiere nivel ' + it.lv };
+    if (!it) return { ok: false, msg: $t('Slot vacío') };
+    if (it.cls && cls && it.cls !== cls) return { ok: false, msg: $t('{0}: solo para {1}', it.name, CLASSES[it.cls] ? CLASSES[it.cls].label : it.cls) };
+    if (it.only && branch !== it.only) return { ok: false, msg: $t('{0}: solo para {1}', it.name, it.only.charAt(0).toUpperCase() + it.only.slice(1)) };
+    if (it.type === 'weapon' || it.type === 'sub') { var wl = weaponAllowed(it, cls, branch); if (wl === false) return { ok: false, msg: $t('{0}: tu clase no puede usar este tipo de arma', it.name) }; }
+    if (level < it.lv) return { ok: false, msg: $t('{0}: requiere nivel {1}', it.name, it.lv) };
     var base = calcStats(level, {}, cls || 'warrior');
-    for (var r = 0; r < 4; r++) { var k = STAT_NAME[r].toLowerCase(); if (it.req && it.req[r] > base[k]) return { ok: false, msg: it.name + ': requiere ' + STAT_NAME[r] + ' ' + it.req[r] }; }
+    for (var r = 0; r < 4; r++) { var k = STAT_NAME[r].toLowerCase(); if (it.req && it.req[r] > base[k]) return { ok: false, msg: $t('{0}: requiere {1} {2}', it.name, STAT_NAME[r], it.req[r]) }; }
+    if (it.type === 'sub' && equip.weapon && isTwoHanded(ITEMS[idOf(equip.weapon)])) return { ok: false, msg: $t('{0}: no se puede usar con un arma a dos manos', it.name) };
     var cands = TYPE_SLOTS[it.type], slot = null;
     for (var i = 0; i < cands.length; i++) if (!equip[cands[i]]) { slot = cands[i]; break; }
     if (!slot) slot = cands[0];
     var snapI = inv.equip.slice(), snapE = {}; for (var q in equip) snapE[q] = equip[q];
     var old = equip[slot] || null;
     equip[slot] = inst; inv.equip[idx] = old;
-    var extra = null;   // pieza que choca con un overall
-    if (it.overall && equip.bottom) { extra = equip.bottom; delete equip.bottom; }
-    else if (it.type === 'bottom' && equip.top && ITEMS[idOf(equip.top)] && ITEMS[idOf(equip.top)].overall) { extra = equip.top; delete equip.top; }
-    if (extra) {
+    var extras = [];   // piezas que chocan: overall <-> bottom, arma a dos manos -> escudo
+    if (it.overall && equip.bottom) { extras.push(equip.bottom); delete equip.bottom; }
+    else if (it.type === 'bottom' && equip.top && ITEMS[idOf(equip.top)] && ITEMS[idOf(equip.top)].overall) { extras.push(equip.top); delete equip.top; }
+    if (isTwoHanded(it) && equip.sub) { extras.push(equip.sub); delete equip.sub; }
+    for (var xi = 0; xi < extras.length; xi++) {
       var f = inv.equip.indexOf(null);
-      if (f < 0) { inv.equip = snapI; for (var z in equip) delete equip[z]; for (var y in snapE) equip[y] = snapE[y]; return { ok: false, msg: 'Inventario lleno' }; }
-      inv.equip[f] = extra;
+      if (f < 0) { inv.equip = snapI; for (var z in equip) delete equip[z]; for (var y in snapE) equip[y] = snapE[y]; return { ok: false, msg: $t('Inventario lleno') }; }
+      inv.equip[f] = extras[xi];
     }
-    return { ok: true, slot: slot, msg: 'Equipado: ' + it.name + (extra ? ' (se quitó ' + ITEMS[idOf(extra)].name + ')' : '') };
+    var extra = extras.length ? extras.map(function (e) { return ITEMS[idOf(e)].name; }).join(', ') : null;
+    return { ok: true, slot: slot, msg: extra ? $t('Equipado: {0} (se quitó {1})', it.name, extra) : $t('Equipado: {0}', it.name) };
   }
 
   function unequipSlot(inv, equip, slot) {
     if (!equip[slot]) return { ok: false, msg: '' };
     var i = inv.equip.indexOf(null);
-    if (i < 0) return { ok: false, msg: 'Inventario lleno' };
+    if (i < 0) return { ok: false, msg: $t('Inventario lleno') };
     inv.equip[i] = equip[slot]; delete equip[slot];
-    return { ok: true, msg: 'Desequipado' };
+    return { ok: true, msg: $t('Desequipado') };
   }
 
   // Drops por kill (ajustables)
@@ -295,9 +315,9 @@
     cube_super: { up: [0.141, 0.06, 0.024], p2: 0.10, p3: 0.01 },
     cube_black: { up: [0.16, 0.11, 0.05], p2: 0.20, p3: 0.05, compare: true }
   };
-  use('cube_miracle', 'Miracle Cube', 'Reinicia el potencial de un equipo (o le da un potencial Rare si no tiene). Puede subir el rango: Rare→Epic 11.8%, Epic→Unique 3.8%.');
-  use('cube_super', 'Super Miracle Cube', 'Reinicia el potencial de un equipo. Rare→Epic 14.1%, Epic→Unique 6%, Unique→Legendary 2.4%.');
-  use('cube_black', 'Black Cube', 'Reinicia el potencial y te deja ELEGIR entre el nuevo y el anterior. Rare→Epic 16%, Epic→Unique 11%, Unique→Legendary 5%; más probabilidad de líneas de rango alto.');
+  use('cube_miracle', 'Miracle Cube', $t('Reinicia el potencial de un equipo (o le da un potencial Rare si no tiene). Puede subir el rango: Rare→Epic 11.8%, Epic→Unique 3.8%.'));
+  use('cube_super', 'Super Miracle Cube', $t('Reinicia el potencial de un equipo. Rare→Epic 14.1%, Epic→Unique 6%, Unique→Legendary 2.4%.'));
+  use('cube_black', 'Black Cube', $t('Reinicia el potencial y te deja ELEGIR entre el nuevo y el anterior. Rare→Epic 16%, Epic→Unique 11%, Unique→Legendary 5%; más probabilidad de líneas de rango alto.'));
   ITEMS.cube_miracle.sell = 500; ITEMS.cube_super.sell = 2500; ITEMS.cube_black.sell = 6000;
   SHOP.push({ id: 'cube_miracle', price: 30000, cat: 'enhance' });   // precio PROVISIONAL
   // usa un cubo sobre un equipo (id o instancia). Devuelve { inst: instancia nueva, from: rango anterior (-1 = sin potencial), to: rango nuevo, up: ¿subió? }
@@ -362,7 +382,7 @@
   function gainTxt(g) { return Object.keys(g).map(function (k) { return (k === 'att' ? 'ATT' : k === 'matt' ? 'MATT' : k.toUpperCase()) + ' +' + g[k]; }).join(', '); }
   var SC_PIECES = { 100: 5, 60: 10, 10: 20 }, SC_SELL = { 100: 20, 60: 50, 10: 100 };
   [100, 60, 10].forEach(function (r) {
-    var STR = ['str', 'dex', 'int', 'luk'], n = { 100: 1, 60: 2, 10: 3 }[r], rate = r / 100, desc = function (g, extra) { return 'Mejora el equipo: ' + gainTxt(g) + '. Éxito ' + r + '%. Gasta 1 mejora (si falla, también).' + (extra || ''); };
+    var STR = ['str', 'dex', 'int', 'luk'], n = { 100: 1, 60: 2, 10: 3 }[r], rate = r / 100, desc = function (g, extra) { return $t('Mejora el equipo: {0}. Éxito {1}%. Gasta 1 mejora (si falla, también).', gainTxt(g), r) + (extra ? ' ' + extra : ''); };
     var g = { att: n }; addScroll('scroll_glove_att' + r, 'Scroll for Glove for ATT ' + r + '%', 'scroll_' + r, { t: 'stat', g: 'glove', rate: rate, gain: g }, desc(g), SC_SELL[r], SC_PIECES[r]);
     Object.keys(WCAT).forEach(function (p) {
       if (!Object.keys(ITEMS).some(function (k) { return ITEMS[k].type === 'weapon' && wprefix(k) === +p; })) return;   // solo tipos de arma que existen en el juego
@@ -371,13 +391,13 @@
       addScroll('scroll_w' + p + '_' + ak + r, 'Scroll for ' + wc[0] + ' for ' + (mg ? 'Magic Attack' : 'ATT') + ' ' + r + '%', 'scroll_' + r, { t: 'stat', g: 'weapon', wp: +p, rate: rate, gain: gain }, desc(gain), SC_SELL[r], SC_PIECES[r]);
     });
     STR.forEach(function (st) {
-      var ga = {}; ga[st] = n; addScroll('scroll_armor_' + st + r, 'Scroll for Armor for ' + st.toUpperCase() + ' ' + r + '%', 'scroll_' + r, { t: 'stat', g: 'armor', rate: rate, gain: ga }, desc(ga, ' Sirve para sombrero, top/overall, bottom, capa y zapatos.'), SC_SELL[r], SC_PIECES[r]);
-      var gc = {}; gc[st] = n; addScroll('scroll_acc_' + st + r, 'Scroll for Accessory for ' + st.toUpperCase() + ' ' + r + '%', 'scroll_' + r, { t: 'stat', g: 'acc', rate: rate, gain: gc }, desc(gc, ' Sirve para anillos, pendientes, cinturón, hombreras, pendant y accesorios de cara/ojos.'), SC_SELL[r], 0);   // sin accesorios aún: no se venden
+      var ga = {}; ga[st] = n; addScroll('scroll_armor_' + st + r, 'Scroll for Armor for ' + st.toUpperCase() + ' ' + r + '%', 'scroll_' + r, { t: 'stat', g: 'armor', rate: rate, gain: ga }, desc(ga, $t('Sirve para sombrero, top/overall, bottom, capa y zapatos.')), SC_SELL[r], SC_PIECES[r]);
+      var gc = {}; gc[st] = n; addScroll('scroll_acc_' + st + r, 'Scroll for Accessory for ' + st.toUpperCase() + ' ' + r + '%', 'scroll_' + r, { t: 'stat', g: 'acc', rate: rate, gain: gc }, desc(gc, $t('Sirve para anillos, pendientes, cinturón, hombreras, pendant y accesorios de cara/ojos.')), SC_SELL[r], 0);   // sin accesorios aún: no se venden
     });
   });
-  addScroll('scroll_chaos', 'Chaos Scroll 60%', 'scroll_chaos', { t: 'chaos', rate: CHAOS_RATE }, 'Éxito 60%: cambia al azar entre -5 y +5 los stats que el equipo YA tiene (a veces todos, a veces solo algunos). Gasta 1 mejora; si acierta cuenta como (+1).', 200, 30);
-  addScroll('scroll_clean', 'Clean Slate Scroll', 'scroll_clean', { t: 'clean', rate: CLEAN_RATE }, 'Recupera 1 mejora gastada por un fallo (no las de scrolls que acertaron).', 150, 25);
-  addScroll('scroll_white', 'White Scroll', 'scroll_white', { t: 'white' }, 'Protege el equipo: el próximo scroll que uses en él NO gastará la mejora si falla. La protección se consume con ese scroll, acierte o falle.', 400, 50);
+  addScroll('scroll_chaos', 'Chaos Scroll 60%', 'scroll_chaos', { t: 'chaos', rate: CHAOS_RATE }, $t('Éxito 60%: cambia al azar entre -5 y +5 los stats que el equipo YA tiene (a veces todos, a veces solo algunos). Gasta 1 mejora; si acierta cuenta como (+1).'), 200, 30);
+  addScroll('scroll_clean', 'Clean Slate Scroll', 'scroll_clean', { t: 'clean', rate: CLEAN_RATE }, $t('Recupera 1 mejora gastada por un fallo (no las de scrolls que acertaron).'), 150, 25);
+  addScroll('scroll_white', 'White Scroll', 'scroll_white', { t: 'white' }, $t('Protege el equipo: el próximo scroll que uses en él NO gastará la mejora si falla. La protección se consume con ese scroll, acierte o falle.'), 400, 50);
 
   function cleanSc(x, id) {
     if (!x || typeof x !== 'object') return null; var it = ITEMS[id], tuc = (it && it.tuc) || 0, o = { s: Math.max(0, x.s | 0), f: Math.max(0, x.f | 0), w: !!x.w, d: {} };
@@ -397,24 +417,24 @@
   function nameOf(x) { var it = ITEMS[idOf(x)], sc = scOf(x); return it ? it.name + (sc && sc.s ? ' (+' + sc.s + ')' : '') : ''; }
   // ¿sirve este scroll para este equipo y por qué no?
   function scrollCheck(scrollId, x) {
-    var S = ITEMS[scrollId] && ITEMS[scrollId].scroll, id = idOf(x), it = ITEMS[id], sc = scOf(x); if (!S || !it || it.kind !== 'equip') return { ok: false, msg: 'No sirve para este objeto' };
-    if (!((it.tuc || 0) > 0)) return { ok: false, msg: 'Este equipo no tiene mejoras' };
-    if (S.t === 'clean') return sc && sc.f > 0 ? { ok: true } : { ok: false, msg: 'No hay mejoras perdidas por fallos' };
-    if (slotsLeft(x) < 1) return { ok: false, msg: 'Sin mejoras disponibles' };
-    if (S.t === 'white') return sc && sc.w ? { ok: false, msg: 'Ya tiene la protección activa' } : { ok: true };
+    var S = ITEMS[scrollId] && ITEMS[scrollId].scroll, id = idOf(x), it = ITEMS[id], sc = scOf(x); if (!S || !it || it.kind !== 'equip') return { ok: false, msg: $t('No sirve para este objeto') };
+    if (!((it.tuc || 0) > 0)) return { ok: false, msg: $t('Este equipo no tiene mejoras') };
+    if (S.t === 'clean') return sc && sc.f > 0 ? { ok: true } : { ok: false, msg: $t('No hay mejoras perdidas por fallos') };
+    if (slotsLeft(x) < 1) return { ok: false, msg: $t('Sin mejoras disponibles') };
+    if (S.t === 'white') return sc && sc.w ? { ok: false, msg: $t('Ya tiene la protección activa') } : { ok: true };
     if (S.t === 'stat') {
       var fit = S.g === 'glove' ? it.type === 'glove' : S.g === 'weapon' ? it.type === 'weapon' && wprefix(id) === S.wp : S.g === 'armor' ? SC_ARMOR.indexOf(it.type) >= 0 : SC_ACC.indexOf(it.type) >= 0;
-      if (!fit) return { ok: false, msg: 'No sirve para este tipo de equipo' };
+      if (!fit) return { ok: false, msg: $t('No sirve para este tipo de equipo') };
     }
-    if (S.t === 'chaos' && !Object.keys(statsOf(x)).some(function (k) { return statsOf(x)[k] > 0; })) return { ok: false, msg: 'No tiene stats que cambiar' };
+    if (S.t === 'chaos' && !Object.keys(statsOf(x)).some(function (k) { return statsOf(x)[k] > 0; })) return { ok: false, msg: $t('No tiene stats que cambiar') };
     return { ok: true };
   }
   // usa un scroll sobre un equipo (id o instancia). Devuelve { ok, inst, success, msg, changes, protectedSlot }. No modifica la instancia original.
   function scrollUse(inst, scrollId, rnd) {
     rnd = rnd || Math.random; var chk = scrollCheck(scrollId, inst); if (!chk.ok) return { ok: false, msg: chk.msg };
     var S = ITEMS[scrollId].scroll, id = idOf(inst), out = Object.assign({}, toInst(inst)), sc0 = scOf(inst) || { s: 0, f: 0, w: false, d: {} }, sc = { s: sc0.s, f: sc0.f, w: sc0.w, d: Object.assign({}, sc0.d) }, res = { ok: true, success: true, changes: {}, msg: '' }, k;
-    if (S.t === 'white') { sc.w = true; res.msg = 'Protección activa: el próximo scroll no gastará la mejora si falla.'; }
-    else if (S.t === 'clean') { if (rnd() < S.rate) { sc.f--; res.msg = 'Recuperaste 1 mejora.'; } else { res.success = false; res.msg = 'El Clean Slate falló.'; } }
+    if (S.t === 'white') { sc.w = true; res.msg = $t('Protección activa: el próximo scroll no gastará la mejora si falla.'); }
+    else if (S.t === 'clean') { if (rnd() < S.rate) { sc.f--; res.msg = $t('Recuperaste 1 mejora.'); } else { res.success = false; res.msg = $t('El Clean Slate falló.'); } }
     else {
       var hit = rnd() < S.rate, prot = sc.w; sc.w = false;   // la protección se consume con cualquier scroll
       if (hit) {
@@ -426,11 +446,11 @@
           pick.forEach(function (q) { var dl = Math.floor(rnd() * 11) - 5; if (q === 'mhp' || q === 'mmp') dl *= 5; if (cur[q] + dl < 0) dl = -cur[q]; if (dl) ch[q] = dl; });
         }
         for (k in ch) sc.d[k] = (sc.d[k] || 0) + ch[k]; res.changes = ch;
-        res.msg = '¡Éxito!' + (Object.keys(ch).length ? ' ' + Object.keys(ch).map(function (q) { return (q === 'att' ? 'ATT' : q === 'matt' ? 'MATT' : q === 'mhp' ? 'MaxHP' : q === 'mmp' ? 'MaxMP' : q.toUpperCase()) + ' ' + (ch[q] > 0 ? '+' : '') + ch[q]; }).join(', ') : ' (sin cambios)');
-        if (prot) res.msg += ' La protección se consumió.';
+        res.msg = $t('¡Éxito!') + (Object.keys(ch).length ? ' ' + Object.keys(ch).map(function (q) { return (q === 'att' ? 'ATT' : q === 'matt' ? 'MATT' : q === 'mhp' ? 'MaxHP' : q === 'mmp' ? 'MaxMP' : q.toUpperCase()) + ' ' + (ch[q] > 0 ? '+' : '') + ch[q]; }).join(', ') : ' ' + $t('(sin cambios)'));
+        if (prot) res.msg += ' ' + $t('La protección se consumió.');
       } else {
         res.success = false;
-        if (prot) { res.protectedSlot = true; res.msg = 'Falló, pero la protección evitó perder la mejora.'; } else { sc.f++; res.msg = 'Falló: se perdió 1 mejora.'; }
+        if (prot) { res.protectedSlot = true; res.msg = $t('Falló, pero la protección evitó perder la mejora.'); } else { sc.f++; res.msg = $t('Falló: se perdió 1 mejora.'); }
       }
     }
     var cs = cleanSc(sc, id); if (cs) out.sc = cs; else delete out.sc; res.inst = out.pot || out.sc ? out : id; return res;

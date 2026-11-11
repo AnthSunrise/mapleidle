@@ -1,6 +1,7 @@
 /* Lista de personajes (izquierda) y ventana de creación (nombre + clase). */
 (function () {
   'use strict';
+  var $t = window.$t || function (x) { return x; };
   var G = window.MAPLE_GAME, S = window.MapleSim;
   if (!G || !S) return;
   var world = G.world, MAXC = 6, sig = '';
@@ -45,32 +46,32 @@
     vis.forEach(function (i, n) {
       var c = world.chars[i], b = el('div', 'mc-btn' + (i === world.selected ? ' on' : '') + (world.leader === c ? ' lead' : ''));
       b.appendChild(el('div', '', (world.leader === c ? '♛ ' : '') + (n + 1) + '  ' + c.name + '   Lv ' + c.stats.level + (c.branch ? ' · ' + branchName(c) : ''))); if (c.buffs.length) b.appendChild(buffRow(c, 18));
-      if (window.MapleJobs && window.MapleJobs.canAdvance(c)) { var ab = el('div', 'mc-btn mc-adv', '★ Avanzar de job'); ab.addEventListener('click', function (ev) { ev.stopPropagation(); openAdvance(i); }); b.appendChild(ab); }
+      if (window.MapleJobs && window.MapleJobs.canAdvance(c)) { var ab = el('div', 'mc-btn mc-adv', $t('★ Avanzar de job')); ab.addEventListener('click', function (ev) { ev.stopPropagation(); openAdvance(i); }); b.appendChild(ab); }
       b.addEventListener('click', function () { S.selectChar(world, i); G.focus(i); G.save(); });
       b.addEventListener('contextmenu', function (ev) { ev.preventDefault(); S.setLeader(world, c); G.save(); sig = ''; render(); });   // clic derecho: líder del party (los demás lo siguen y atacan a su objetivo)
-      b.title = 'Clic derecho: ' + (world.leader === c ? 'quitar como líder' : 'hacer líder del party (los demás lo siguen)');
+      b.title = (world.leader === c ? $t('Clic derecho: quitar como líder') : $t('Clic derecho: hacer líder del party (los demás lo siguen)'));
       list.appendChild(b);
     });
   }
   // Avance de job (Lv30): ventana con las character cards de la clase. Si existe assets/ui/cards/<id>.png se usa como fondo de la carta.
   function openAdvance(i) {
     var c = world.chars[i], J = window.MapleJobs; if (!J || !J.canAdvance(c) || document.querySelector('.jc-ov')) return;
-    var ov = el('div', 'jc-ov'); ov.appendChild(el('div', 'jc-t', c.name + ' puede avanzar de job: elige tu camino')); var row = el('div', 'jc-row'); ov.appendChild(row);
+    var ov = el('div', 'jc-ov'); ov.appendChild(el('div', 'jc-t', $t('{0} puede avanzar de job: elige tu camino', c.name))); var row = el('div', 'jc-row'); ov.appendChild(row);
     J.list(c.cls).forEach(function (b) {
       var card = el('div', 'jc-card'); card.style.backgroundImage = 'url(assets/ui/cards/' + b.id + '.png),linear-gradient(160deg,#2d3a70,#161a30 70%)';
       card.appendChild(el('div', 'jc-n', b.name)); card.appendChild(el('div', 'jc-d', b.desc));
       card.addEventListener('click', function () { confirmAdv(i, b); });
       row.appendChild(card);
     });
-    var no = el('button', 'mc-no', 'Decidir más tarde'); no.addEventListener('click', function () { ov.remove(); }); ov.appendChild(no); document.body.appendChild(ov);
+    var no = el('button', 'mc-no', $t('Decidir más tarde')); no.addEventListener('click', function () { ov.remove(); }); ov.appendChild(no); document.body.appendChild(ov);
   }
   function confirmAdv(i, b) {
     var ov = el('div', 'jc-ov'), box = el('div', 'jc-conf'); ov.style.zIndex = 26;
-    box.appendChild(el('div', 'jc-n', '¿Avanzar a ' + b.name + '?')); box.appendChild(el('div', 'jc-d', 'La decisión no se puede deshacer.'));
+    box.appendChild(el('div', 'jc-n', $t('¿Avanzar a {0}?', b.name))); box.appendChild(el('div', 'jc-d', $t('La decisión no se puede deshacer.')));
     var act = el('div', 'mc-act'); act.style.cssText = 'justify-content:center;margin-top:14px';
-    var no = el('button', 'mc-no', 'Volver'), ok = el('button', 'mc-go', 'Confirmar');
+    var no = el('button', 'mc-no', $t('Volver')), ok = el('button', 'mc-go', $t('Confirmar'));
     no.addEventListener('click', function () { ov.remove(); });
-    ok.addEventListener('click', function () { var chk = S.advanceCheck(world, world.chars[i], b.id); if (chk.ok && S.advanceJob(world, world.chars[i], b.id)) { G.save(); } else if (G.toast) G.toast(chk.msg); document.querySelectorAll('.jc-ov').forEach(function (o) { o.remove(); }); sig = ''; msig = ''; render(); });
+    ok.addEventListener('click', function () { var chk = S.advanceCheck(world, world.chars[i], b.id); if (chk.ok && S.advanceJob(world, world.chars[i], b.id)) { G.save(); } else if (G.toast) G.toast($t(chk.msg)); document.querySelectorAll('.jc-ov').forEach(function (o) { o.remove(); }); sig = ''; msig = ''; render(); });
     act.appendChild(no); act.appendChild(ok); box.appendChild(act); ov.appendChild(box); document.body.appendChild(ov);
   }
   G.openAdvance = openAdvance;
@@ -88,58 +89,58 @@
     if (!mgrOpen) return;
     var s = JSON.stringify([world.chars.map(function (c) { return [c.name, c.stats.level, c.mapId, c.branch, c.player.state, c.buffs.map(function (b) { return b.id; }), !!(c.zones && c.zones[c.mapId]), !!c.helpBoss]; }), world.selected, G.showZones()]);
     if (s === msig) { tick(); return; } msig = s; mgr.innerHTML = '';
-    var h = el('div', 'wm-h', 'Personajes (' + world.chars.length + ' / ' + MAXC + ')'); mgr.appendChild(h);
+    var h = el('div', 'wm-h', $t('Personajes ({0} / {1})', world.chars.length, MAXC)); mgr.appendChild(h);
     var tb = el('div'); tb.style.cssText = 'max-height:calc(100vh - 230px);overflow-y:auto;display:flex;flex-direction:column;gap:3px';
     world.chars.forEach(function (c, i) {
       var r = el('div', 'wm-row' + (i === world.selected ? ' on' : '')); r.style.alignItems = 'center';
-      var left = el('div'); left.appendChild(el('div', '', c.name + '  ·  ' + (window.MapleItems.CLASSES[c.cls] || {}).label + ' Lv ' + c.stats.level + (c.branch ? ' · ' + branchName(c) : ''))); var sub = el('div', '', (MAPS[c.mapId] ? MAPS[c.mapId].name : c.mapId) + (c.player.state === 'dead' ? '  ·  muerto' : '')); sub.style.cssText = 'font-size:11px;color:#9aa3c7'; left.appendChild(sub);
+      var left = el('div'); left.appendChild(el('div', '', c.name + '  ·  ' + (window.MapleItems.CLASSES[c.cls] || {}).label + ' Lv ' + c.stats.level + (c.branch ? ' · ' + branchName(c) : ''))); var sub = el('div', '', (MAPS[c.mapId] ? MAPS[c.mapId].name : c.mapId) + (c.player.state === 'dead' ? '  ·  ' + $t('muerto') : '')); sub.style.cssText = 'font-size:11px;color:#9aa3c7'; left.appendChild(sub);
       r.appendChild(left); if (c.buffs.length) r.appendChild(buffRow(c, 22));
-      if (window.MapleJobs && window.MapleJobs.canAdvance(c)) { var ab = el('button', 'wm-go', '★ Avanzar'); ab.style.cssText += ';padding:4px 8px;font-size:12px;margin-left:8px;border-color:#ffe45c;color:#ffe9a8'; ab.addEventListener('click', function (ev) { ev.stopPropagation(); mgrOpen = false; mgr.style.display = 'none'; openAdvance(i); }); r.appendChild(ab); }
+      if (window.MapleJobs && window.MapleJobs.canAdvance(c)) { var ab = el('button', 'wm-go', $t('★ Avanzar')); ab.style.cssText += ';padding:4px 8px;font-size:12px;margin-left:8px;border-color:#ffe45c;color:#ffe9a8'; ab.addEventListener('click', function (ev) { ev.stopPropagation(); mgrOpen = false; mgr.style.display = 'none'; openAdvance(i); }); r.appendChild(ab); }
       // zona de farmeo (cuadro sobre el mapa): el personaje solo busca enemigos dentro
       var zb = el('div'); zb.style.cssText = 'display:flex;gap:4px;margin-left:8px'; var has = !!(c.zones && c.zones[c.mapId]);
-      var bz = el('button', 'wm-go', has ? 'Zona ✓' : 'Zona'); bz.style.cssText += ';padding:4px 8px;font-size:12px'; bz.title = 'Arrastra un cuadro sobre el mapa: el personaje solo buscará enemigos dentro de él';
+      var bz = el('button', 'wm-go', has ? $t('Zona') + ' ✓' : $t('Zona')); bz.style.cssText += ';padding:4px 8px;font-size:12px'; bz.title = $t('Arrastra un cuadro sobre el mapa: el personaje solo buscará enemigos dentro de él');
       bz.addEventListener('click', function (ev) { ev.stopPropagation(); mgrOpen = false; mgr.style.display = 'none'; G.startZone(i); });
       zb.appendChild(bz);
-      var bj = el('button', 'wm-go', c.helpBoss ? 'Jefes ✓' : 'Jefes'); bj.style.cssText += ';padding:4px 8px;font-size:12px' + (c.helpBoss ? ';border-color:#ffe45c;color:#ffe9a8' : ''); bj.title = 'Ayudar contra field bosses: ignora su zona de farmeo y va a atacar al jefe mientras esté vivo (desactívalo con personajes de nivel bajo)';
+      var bj = el('button', 'wm-go', c.helpBoss ? $t('Jefes') + ' ✓' : $t('Jefes')); bj.style.cssText += ';padding:4px 8px;font-size:12px' + (c.helpBoss ? ';border-color:#ffe45c;color:#ffe9a8' : ''); bj.title = $t('Ayudar contra field bosses: ignora su zona de farmeo y va a atacar al jefe mientras esté vivo (desactívalo con personajes de nivel bajo)');
       bj.addEventListener('click', function (ev) { ev.stopPropagation(); c.helpBoss = !c.helpBoss; G.save(); msig = ''; renderMgr(); });
       zb.appendChild(bj);
-      if (has) { var bx = el('button', 'wm-go', '✕'); bx.style.cssText += ';padding:4px 8px;font-size:12px'; bx.title = 'Quitar la zona (vuelve a buscar en todo el mapa)'; bx.addEventListener('click', function (ev) { ev.stopPropagation(); G.clearZone(i); msig = ''; renderMgr(); }); zb.appendChild(bx); }
+      if (has) { var bx = el('button', 'wm-go', '✕'); bx.style.cssText += ';padding:4px 8px;font-size:12px'; bx.title = $t('Quitar la zona (vuelve a buscar en todo el mapa)'); bx.addEventListener('click', function (ev) { ev.stopPropagation(); G.clearZone(i); msig = ''; renderMgr(); }); zb.appendChild(bx); }
       r.appendChild(zb);
       r.addEventListener('click', function () { S.selectChar(world, i); G.focus(i); G.save(); msig = ''; renderMgr(); });
       tb.appendChild(r);
     });
     mgr.appendChild(tb);
-    var zt = el('label', 'mc-hint'); zt.style.cssText += ';display:block;margin:6px 0'; var zc = document.createElement('input'); zc.type = 'checkbox'; zc.checked = G.showZones(); zc.addEventListener('change', function () { G.showZones(zc.checked); msig = ''; }); zt.appendChild(zc); zt.appendChild(document.createTextNode(' Mostrar las zonas de farmeo en el mapa')); mgr.appendChild(zt);
-    var add = el('button', 'wm-go', '+ Nuevo personaje'); add.disabled = world.chars.length >= MAXC; add.addEventListener('click', function () { openCreate(false); }); mgr.appendChild(add);
+    var zt = el('label', 'mc-hint'); zt.style.cssText += ';display:block;margin:6px 0'; var zc = document.createElement('input'); zc.type = 'checkbox'; zc.checked = G.showZones(); zc.addEventListener('change', function () { G.showZones(zc.checked); msig = ''; }); zt.appendChild(zc); zt.appendChild(document.createTextNode(' ' + $t('Mostrar las zonas de farmeo en el mapa'))); mgr.appendChild(zt);
+    var add = el('button', 'wm-go', $t('+ Nuevo personaje')); add.disabled = world.chars.length >= MAXC; add.addEventListener('click', function () { openCreate(false); }); mgr.appendChild(add);
   }
   setInterval(renderMgr, 400);
 
   function openCreate(first) {
     var ov = el('div', 'mc-ov'), box = el('div', 'mc-box');
-    box.appendChild(el('div', 'mc-t', first ? 'Crea tu primer personaje' : 'Nuevo personaje'));
-    var inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 12; inp.placeholder = 'Nombre (máx. 12)';
-    inp.value = first ? '' : 'Guerrero' + (world.chars.length + 1);
+    box.appendChild(el('div', 'mc-t', first ? $t('Crea tu primer personaje') : $t('Nuevo personaje')));
+    var inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 12; inp.placeholder = $t('Nombre (máx. 12)');
+    inp.value = first ? '' : $t('Guerrero') + (world.chars.length + 1);
     ['keydown', 'keyup', 'keypress'].forEach(function (ev) { inp.addEventListener(ev, function (e) { e.stopPropagation(); }); });   // que las teclas del juego no se activen al escribir
     box.appendChild(inp);
     var cls = el('div', 'mc-cls');
     var chosen = 'warrior', cbs = {};
     [['warrior', 'Warrior', true], ['mage', 'Mage', true], ['thief', 'Thief', true], ['archer', 'Archer', true], ['pirate', 'Pirate', true]].forEach(function (c) {
       var b = el('button', 'mc-c' + (c[0] === chosen ? ' on' : ''), c[1]); b.disabled = !c[2]; cbs[c[0]] = b;
-      if (!c[2]) b.title = 'Próximamente: faltan sprites y stats de la clase';
-      else b.addEventListener('click', function () { chosen = c[0]; for (var k in cbs) cbs[k].className = 'mc-c' + (k === chosen ? ' on' : ''); if (!first && /^(Guerrero|Ladr[oó]n|Arquero|Mago|Pirata)\d+$/.test(inp.value)) inp.value = (chosen === 'thief' ? 'Ladrón' : chosen === 'archer' ? 'Arquero' : chosen === 'mage' ? 'Mago' : chosen === 'pirate' ? 'Pirata' : 'Guerrero') + (world.chars.length + 1); });
+      if (!c[2]) b.title = $t('Próximamente: faltan sprites y stats de la clase');
+      else b.addEventListener('click', function () { chosen = c[0]; for (var k in cbs) cbs[k].className = 'mc-c' + (k === chosen ? ' on' : ''); if (!first && /^(Guerrero|Ladr[oó]n|Arquero|Mago|Pirata|Warrior|Thief|Archer|Mage|Pirate)\d+$/.test(inp.value)) inp.value = $t(chosen === 'thief' ? 'Ladrón' : chosen === 'archer' ? 'Arquero' : chosen === 'mage' ? 'Mago' : chosen === 'pirate' ? 'Pirata' : 'Guerrero') + (world.chars.length + 1); });
       cls.appendChild(b);
     });
     box.appendChild(cls);
-    box.appendChild(el('div', 'mc-hint', 'Warrior (cuerpo a cuerpo), Thief (estrellas), Archer (arco), Mage (magia) y Pirate (nudillos).'));
-    var act = el('div', 'mc-act'), go = el('button', 'mc-go', 'Crear');
-    if (!first) { var no = el('button', 'mc-no', 'Cancelar'); no.addEventListener('click', function () { ov.remove(); }); act.appendChild(no); }
+    box.appendChild(el('div', 'mc-hint', $t('Warrior (cuerpo a cuerpo), Thief (estrellas), Archer (arco), Mage (magia) y Pirate (nudillos).')));
+    var act = el('div', 'mc-act'), go = el('button', 'mc-go', $t('Crear'));
+    if (!first) { var no = el('button', 'mc-no', $t('Cancelar')); no.addEventListener('click', function () { ov.remove(); }); act.appendChild(no); }
     function sync() { go.disabled = !inp.value.trim(); }
     inp.addEventListener('input', sync); sync();
     go.addEventListener('click', function () {
       var name = inp.value.trim().slice(0, 12); if (!name) return;
       if (first) { world.chars = []; S.addCharacter(world, { name: name, cls: chosen }); S.selectChar(world, 0); G.focus(0); }
       else { S.addCharacter(world, { name: name, cls: chosen }); S.selectChar(world, world.chars.length - 1); G.focus(world.selected); }
-      G.enableSave(); G.save(); sig = ''; msig = ''; render(); ov.remove();
+      G.enableSave(); G.save(); sig = ''; msig = ''; render(); ov.remove(); if (first) window.dispatchEvent(new Event('maple:firstchar'));
     });
     act.appendChild(go); box.appendChild(act); ov.appendChild(box); document.body.appendChild(ov);
     setTimeout(function () { inp.focus(); }, 50);

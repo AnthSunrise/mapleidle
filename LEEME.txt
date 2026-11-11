@@ -717,3 +717,105 @@ ETAPA 74 - 8 pociones nuevas en la tienda (Consumibles)
   - White Potion (+500 HP, 350), Mana Elixir (+300 MP, 620), Unagi (+1000 HP, 1000), Pure Water (+800 MP, 1120), Ice Cream Pop (+1500 HP, 1500), Red Bean Sundae (+1500 MP, 2250), Melting Cheese (+2000 HP, 2000), Sunrise Dew (+2000 MP, 3000).
   - Precio de venta = la mitad del de compra. Se pueden asignar como poción automática de HP/MP desde el inventario (clic en USE).
   - Iconos en assets/item/<id>.png (white_potion, mana_elixir, unagi, pure_water, ice_cream_pop, red_bean_sundae, melting_cheese, sunrise_dew).
+
+ETAPA 75 - Paquete de migración (sin cambios de juego)
+  - docs/: guías para continuar con otra herramienta (00_EMPEZAR_AQUI, 01_ARQUITECTURA, 02_UI_Y_SPRITES, 03_REGLAS_DE_DISENO, 04_HOJA_DE_RUTA, 05_PROMPT_PARA_OTRA_IA) y las GUIA_AGREGAR_* (la de items ahora documenta categorías de tienda y cómo añadir una poción).
+  - tests/: las 58 pruebas con rutas relativas + run_all.sh (corre todo; ~5 min).
+
+ETAPA 76 - Tutorial
+- tutorial.js (nuevo): 5 pasos (bienvenida, auto farm/objetivo, zonas con C, pociones, mapa y mover personajes), con resaltado y botones Siguiente/Anterior/Saltar.
+- Empieza al crear el primer personaje (chars.js lanza 'maple:firstchar'); al terminar o saltar se guarda localStorage maple_tut='done'.
+- Botón "?" abajo a la derecha para repetirlo. Para añadir pasos: agregar un objeto a STEPS en tutorial.js.
+- Pasos 3-5 resaltan el botón del menú ☰ (los botones sueltos se esconden en pantallas estrechas).
+
+ETAPA 77 - Tutorial de 10 pasos + final (reemplaza el de la etapa 76)
+  - tutorial.js: 11 tarjetas con tus textos (negritas con [ ], títulos, imágenes de muestra). La tarjeta va centrada si el paso no señala nada y junto al elemento resaltado (menú, lista de personajes, ventana) si lo hay; en móvil sube/baja a la parte inferior.
+  - Cada paso abre la ventana que explica (Personajes, Pociones, Mapa, Tienda, menú ☰ con la entrada resaltada). Al terminar o saltar se cierra todo y se guarda maple_tut='done'.
+  - Ajustes ahora tiene el botón "Tutorial" (repite); se quitó el botón "?".
+  - mui.js: window.MAPLE_UI (closeAll, show, entry, shopMenu) para controlar ventanas desde el tutorial; clic en la tarjeta no cierra el menú.
+  - assets/tutorial/: party_sample.png, skill_sample.png, stats_sample.png (tus imágenes).
+  - tests/test_tutorial.js: datos del tutorial.
+
+ETAPA 78 - Misiones de bienvenida
+  - quests.js (nuevo): ventana "Misiones" (tecla Q / menú ☰) con 6 misiones + bono: zona de farmeo, líder, pociones, Nivel 10, tienda, viajar; cada una da un regalo (mesos y/o pociones) que se reclama con un botón. Aviso al completar y punto rojo en el botón ☰ si hay regalos por reclamar.
+  - Se detectan solas (zona, líder, nivel, mapa) o por evento (MAPLE_Q.event('potion'|'shop'), llamado desde ui.js y mui.js). Si el inventario USE está lleno el regalo no se entrega hasta que haya hueco.
+  - El progreso se guarda en la partida (world.quests -> maple_save.quests). Para añadir una misión: agrega un objeto a QUESTS en quests.js.
+  - Tutorial: el paso del Mapa queda centrado; el final menciona las Misiones.
+  - tests/test_quests.js.
+
+ETAPA 79 - Misiones al estilo "Quest Helper"
+  - La ventana grande de Misiones se reemplaza por la ventana pequeña de MapleStory (UIWindow2/QuestAlarm): cabecera con Q, título "Misiones (n/6)", botón AUTO (reclama todos los regalos), minimizar y cerrar. Se arrastra por la cabecera y guarda posición, minimizado y cerrado en localStorage (maple_qpos / maple_qmin / maple_qh).
+  - Cada misión muestra título, objetivo y contador n/m (verde al completarse, con "¡Reclamar!"). Clic en una misión hecha = reclamar; clic en una pendiente = ver descripción y regalo. La Q parpadea y el botón ☰ muestra un punto rojo si hay regalos.
+  - Se muestra sola tras crear el primer personaje; la tecla Q o la entrada Misiones del menú la abren/cierran. Desaparece cuando todo está reclamado.
+  - assets/ui2/qh/: sprites (el botón minimizar/maximizar viene de Basic.img, recoloreado a verde como en tu referencia).
+
+ETAPA 80 - Idioma ES/EN (base)
+  - i18n.js + lang_en.js: función global $t('texto en español', args…) con el español como clave; sin traducción cae al español. Ver docs/06_IDIOMAS.md.
+  - La primera vez que se entra aparece un selector (Español / English) y se guarda en localStorage maple_lang. Se cambia en Ajustes > Idioma (recarga la página).
+  - Traducido en esta etapa: tutorial completo, misiones (Quest Helper), menú ☰, Ajustes y confirmación de reinicio.
+  - Las etiquetas de los botones ocultos (Personajes (C), Pociones (P), Mapa (M), Misiones (Q)) siguen en español porque el menú las busca por texto.
+  - El resto de textos aparecen aún en español en modo inglés; se traducen en las etapas 81+ (chars/worldmap/ui/game, ventanas mui, items, skills).
+  - tests/test_i18n.js.
+
+ETAPA 81 - Traducción ES/EN (personajes, mapa, juego, simulación)
+  - Traducidos con $t: chars.js (gestor de personajes, avanzar de clase, crear personaje, botones Zona/Jefes), worldmap.js, panel de pociones (ui.js), game.js (ÉLITE, zonas, revivir, diálogo offline) y sim.js (textos flotantes y mensajes: LEVEL UP, EXP, muerte, robo, inventario lleno, nombres de clase por defecto).
+  - Pendiente: skillsPanel antiguo de ui.js y textos de debug (sin traducir). Ventanas mui, items y skills en etapas 82-84.
+  - tests/test_i18n.js ahora revisa también chars/worldmap/ui/game/sim.
+  - Nota: test_assassin.js falla a veces por azar (no relacionado).
+
+ETAPA 82 - Fondos de mapa (parallax y animación)
+  - game.js: drawBack() dibuja las capas "back" del .img del mapa detrás (y delante, si front=1) del render: parallax (x + (rx+100)·cámara/100), repetición en X/Y (type 1-7 con cx/cy), desplazamiento automático (type 4-7), espejo (f), alpha y animación por frames (ani).
+  - tools/back_from_img.py: convierte un mapa .img + los Back/<bS>.img (sacados con wzimg.py) en assets/back/<bS>/ y backdata_<mapa>.js. Uso en el docstring del script.
+  - Mapas listos: Wild Boar Land (dryRock) y Kerning Subway (metroSubway; faltan las capas de metroSubway2, que son las animadas: pásame metroSubway2.img).
+  - IMPORTANTE: los renders opacos (fondo negro baked) tapan el fondo. kerning_subway.png se pasó a transparente (negro puro -> alpha 0). Boars (boars.png) y los demás renders RGB deben hacerse lo mismo.
+
+ETAPA 83 - Traducción ES/EN (ventanas mui)
+  - mui.js: mensajes de inventario/equipo (descartar, desequipar), ventana de Skills (descripciones, pestañas, "Sin skills…"), tienda (categorías, comprar/vender/vender todo, avisos), scrolls y cubos (elegir equipo, confirmaciones, potencial) con $t y entradas EN en lang_en.js.
+  - Pendiente: nombres/descripciones/mensajes de items.js (etapa 84) y de skills.js/jobs.js/buffs.js (etapa 85). Los textos de tooltips que vienen de esos archivos siguen en su idioma original hasta entonces.
+
+ETAPA 84 - Traducción ES/EN (items.js)
+  - items.js: descripciones de pociones, scrolls y cubos, y todos los mensajes (equipar/desequipar, requisitos, scrolls, Clean Slate, protección) con $t + EN en lang_en.js. Los nombres de equipo ya venían en inglés del WZ.
+  - tests/test_i18n.js revisa también items.js.
+  - game.js: el usuario revirtió el relleno de fondos estirados (etapa 82e); la versión base ahora es la suya.
+  - Pendiente: skills.js/jobs.js/buffs.js (etapa 85). Nota: test_skill.js y test_assassin.js fallan a veces por azar.
+
+ETAPA 85 - Traducción ES/EN (skills, jobs, buffs) - FIN de la traducción
+  - skills.js: todas las descripciones de skills (info) con $t y placeholders; jobs.js y buffs.js: descripciones con $t. EN en lang_en.js.
+  - tests/test_i18n.js revisa también skills/jobs/buffs.
+  - Queda sin traducir solo lo oculto/debug (skillsPanel antiguo de ui.js). Para añadir texto nuevo: $t('texto en español {0}', valor) + entrada en lang_en.js (docs/06_IDIOMAS.md).
+
+ETAPA 85b - Traducción de pasivas faltantes y balance del Brawler
+  - skills.js: faltaban 'Al golpear: x% de absorber…' (MP Eater), 'Recupera +x% extra de HP/MP…' (Perseverance) y 'STR y DEX +…' / 'LUK y DEX +…'.
+  - items.js: el multiplicador del Pirate era 10.88 (calibrado con el Steel Knuckler ATT 18 de Lv10: daño Lv30 = servidor). Con armas mejores (ATT mucho más alto) multiplicaba de más (~1.76x el Warrior). Ahora mult 6.185 (igual que Warrior) + ATT plano 13.6 (starAtt, como el Thief): con el arma inicial el daño sigue idéntico al servidor (tests de calibración OK) y con mejor equipo queda parejo con el resto. Gunslinger no cambia (starAtt 0).
+
+ETAPA 85c - Arreglo: Cleric y Brawler en bucle (buffs.js)
+  - Causa: el buffs.js de la etapa 85 no tenía los buffs bless, knuckleBooster, channelKarma, darkClarity, invincible, crossbowBooster, daggerBooster, gunBooster y stealBuff (la copia de buffs.js que yo tenía estaba desactualizada). Sin entrada en BUFFS, applyBuff no aplica nada y la skill con Auto se relanzaba sin fin.
+  - Se añadieron las 9 entradas (duración y mods siguen saliendo de cada skill). Nuevo tests/test_buff_refs.js: todo buff que use una skill o sim.js debe existir en buffs.js.
+
+ETAPA 87 — Equipos reales importados (1107 ítems con ID real del WZ)
+- itemdata.js regenerado (nombres, nivel, requisitos, stats, tuc) + iconos assets/item/<id>.png; layerdata.js + assets/layers con el sprite del personaje.
+- Nuevas ranuras en el inventario de equipo: Pendant ×2, Belt, Face Acc, Eye Acc, Shoulder (posiciones del equip_bg). Rings ×4 y Earring ya existían.
+- items.js: restricción de tipo de arma por clase/rama (Brawler solo knuckle, Gunslinger solo pistola, Hunter arco, Crossbowman ballesta, Assassin claw, Bandit daga, Fighter/Page/Spearman sus armas, mago wand/staff).
+- items.js: los requisitos de stat mayores que el AP posible a ese nivel se limitan a ese tope (el reparto de AP es automático).
+- tools/gen_itemdata.py: tipos Ri/Ae/Pe/Be/Af/Ay/Sh. Tests actualizados (>= 91 equipos).
+- Pendiente: 12 ítems base sin sprite completo (ver aviso); drops/tablas por mob los organizas tú (los IDs son los reales).
+
+ETAPA 87b - Arreglo: personajes sin cara ni pelo
+  - Causa: al regenerar layerdata.js en la etapa 87 solo pasé los ids de equipo y se perdieron los de cara/pelo (0002xxxx / 0003xxxx). Reconstruido incluyéndolos.
+
+ETAPA 87c - Solo los equipos elegidos (1006) en el juego
+  - Los 84 .img base (output2) y otros ítems auxiliares se habían metido por error en itemdata/layerdata/iconos; son solo fuentes de sprite. Ahora el juego tiene solo tus equipos elegidos + los 91 anteriores.
+  - Ningún equipo elegido queda con sprite incompleto (ya no hacen falta los 12 .img base).
+
+ETAPA 87d - Tooltips: requisitos y orden de stats
+  - Los números 6, 8 y 9 del tooltip (color "cumple") eran imágenes vacías: Req LEV 60 salía "0", 64 salía "4", 180 salía "1 0". Regenerados (assets/ui/tt/can_6/8/9.png).
+  - Orden de stats del tooltip: Category, Attack Speed (armas), STR, DEX, INT, LUK, MaxHP, MaxMP, Weapon Attack, Magic Attack, Boss Damage (armas), Ignore Enemy Def (armas), Defense, Upgrades.
+  - itemdata ahora trae boss (bdR) e ied (imdR) de los .img (solo se muestran; no afectan al combate todavía).
+
+ETAPA 87e - Tooltips, máscaras y reglas de equipo
+  - Tooltip: categorías con la misma fuente pixelada (GUN, KNUCKLER, PENDANT, BELT, SHOULDER, OVERALL nuevas: wc_48/49, ic_pendant/belt/shoulder/overall). "Longcoat (Overall)" -> "OVERALL". "…Blunt Weapon" -> "One-Handed Blunt" / "Two-Handed Blunt". Pendant/Shoulder ya no dicen Hat.
+  - layers.js: las capas ocultas (p.ej. la cabeza bajo una máscara) siguen sirviendo de ancla; arregla Andras/Marbas/Valefor/Amdusias Hat que salían desplazadas hacia abajo.
+  - items.js: Overall <-> Pants (ya existía, verificado). Nuevo: un arma a dos manos (espada/hacha/maza 2H, lanza, polearm) quita el escudo; con ella equipada no se puede poner escudo.
+
+ETAPA 87f - Documentación de traspaso
+  - docs/07_EQUIPOS_MASIVOS.md (nuevo), docs/04 (PENDIENTES ACTUALES), docs/00, docs/05, docs/GUIA_AGREGAR_ITEMS.md actualizados.

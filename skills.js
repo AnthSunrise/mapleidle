@@ -1,5 +1,6 @@
 /* Skills de 1st Job (datos tomados de 100.img.xml). Cada nivel de personaje da 3 SP; cada nivel de skill cuesta 1 SP. */
 (function (root) {
+  function $t(x) { var a = arguments, f = root.$t; if (f) return f.apply(null, a); return String(x).replace(/\{(\d+)\}/g, function (m, i) { return a[+i + 1] !== undefined ? a[+i + 1] : m; }); }
   'use strict';
   var SKILLS = {
     slashBlast: {
@@ -103,7 +104,7 @@
   SKILLS.warriorMastery = passive({   // Warrior, 1000009 (vanilla Lv15): velocidad, HP máx. Las probabilidades de stance no se usan
     id: 'warriorMastery', cls: 'warrior', skillId: 1000009, name: 'Warrior Mastery', maxLevel: 20, icon: 'assets/skill/warrior_mastery_icon.png',
     fx: function (x) { var v = eq(x, 15, 20); return { speed: (2 + u(v / 2)) / 100, hpLv: 5 + v }; },   // lv2mhp = HP máx. por cada nivel del personaje
-    info: function (x) { var f = this.fx(x); return 'Velocidad +' + Math.round(f.speed * 100) + '% · HP máx. +' + Math.round(f.hpLv) + ' por nivel'; }
+    info: function (x) { var f = this.fx(x); return $t('Velocidad +{0}% · HP máx. +{1} por nivel', Math.round(f.speed * 100), Math.round(f.hpLv)); }
   });
   SKILLS.magicArmor = passive({   // Mage, 2001003 (vanilla Lv15): pasiva en versiones recientes. DEF = pdd * 0.25
     id: 'magicArmor', cls: 'mage', skillId: 2001003, name: 'Magic Armor', maxLevel: 10, icon: 'assets/skill/magic_armor_icon.png',
@@ -115,39 +116,39 @@
     mods: function (x) { return { absorb: (10 + 5 * x) / 100 }; }, duration: function (x) { return 75 + 35 * x; },
     mpCon: function (x) { return 5 + u(x / 2); }, renewAt: 10, hitAt: 0.25, total: 0.6,
     effectDelay: 50, effect: [{ ox: 16, oy: 118 }, { ox: 16, oy: 124 }, { ox: 21, oy: 120 }, { ox: 26, oy: 124 }, { ox: 25, oy: 118 }, { ox: 27, oy: 122 }, { ox: 27, oy: 116 }, { ox: 30, oy: 122 }, { ox: 28, oy: 118 }, { ox: 25, oy: 124 }, { ox: 24, oy: 120 }, { ox: 24, oy: 124 }],
-    info: function (x) { return (10 + 5 * x) + '% del daño recibido se paga con MP · ' + this.duration(x) + ' s'; }
+    info: function (x) { return $t('{0}% del daño recibido se paga con MP · {1} s', 10 + 5 * x, this.duration(x)); }
   };
   SKILLS.teleport = {   // Mage, 2001009: medio de transporte; la IA lo usa para llegar a otras plataformas (a los lados / pisos de arriba y abajo) y para cruzar su plataforma
     id: 'teleport', cls: 'mage', skillId: 2001009, name: 'Teleport', maxLevel: 5, teleportSkill: true,
     icon: 'assets/skill/teleport_icon.png', dir: 'assets/skill/teleport/',
     mpCon: function (x) { return 30 - 2 * x; }, dist: function (x) { return 110 + 12 * x; }, vert: function (x) { return 250 + 5 * x; }, cooldown: 0.5,
-    info: function (x) { return 'Teletransporte: ' + this.dist(x) + ' px a los lados, ' + this.vert(x) + ' px arriba/abajo · MP ' + this.mpCon(x); }
+    info: function (x) { return $t('Teletransporte: {0} px a los lados, {1} px arriba/abajo · MP {2}', this.dist(x), this.vert(x), this.mpCon(x)); }
   };
   SKILLS.mpBoost = passive({   // Mage, 2000006
     id: 'mpBoost', cls: 'mage', skillId: 2000006, name: 'MP Boost', maxLevel: 10, icon: 'assets/skill/mp_boost_icon.png',
     fx: function (x) { var v = eq(x, 20, 10); return { mpLv: 8.055 * v - 0.0995 * v * v }; },   // calibrado con tu servidor (mago Lv30: nivel 0/10/20 = +0/+2119/+3639 MP): MP máx. por cada nivel del personaje
-    info: function (x) { return 'MP máx. +' + Math.round(this.fx(x).mpLv * 10) / 10 + ' por nivel'; }
+    info: function (x) { return $t('MP máx. +{0} por nivel', Math.round(this.fx(x).mpLv * 10) / 10); }
   });
   SKILLS.archerMastery = passive({   // Archer, 3000002 (vanilla Lv15): alcance, evasión y velocidad
     id: 'archerMastery', cls: 'archer', skillId: 3000002, name: 'Archer Mastery', maxLevel: 20, icon: 'assets/skill/archer_mastery_icon.png',
     fx: function (x) { var v = eq(x, 15, 20); return { range: 8 * v, eva: 15 * v, speed: Math.min(2 * v, 5 + v) / 100 }; },
-    info: function (x) { var f = this.fx(x); return 'Alcance +' + Math.round(f.range) + ' px · Evasión ' + Math.round(f.eva) + ' · Velocidad +' + Math.round(f.speed * 100) + '%'; }
+    info: function (x) { var f = this.fx(x); return $t('Alcance +{0} px · Evasión {1} · Velocidad +{2}%', Math.round(f.range), Math.round(f.eva), Math.round(f.speed * 100)); }
   });
   SKILLS.criticalShot = passive({   // Archer, 3000001: probabilidad de crítico 2*x %
     id: 'criticalShot', cls: 'archer', skillId: 3000001, name: 'Critical Shot', maxLevel: 20, icon: 'assets/skill/critical_shot_icon.png',
-    fx: function (x) { return { crit: 2 * x / 100 }; }, info: function (x) { return 'Crítico ' + 2 * x + '%'; }
+    fx: function (x) { return { crit: 2 * x / 100 }; }, info: function (x) { return $t('Crítico {0}%', 2 * x); }
   });
   SKILLS.nimbleBody = passive({   // Thief, 4000000 (vanilla Lv10): evasión 22*x
     id: 'nimbleBody', cls: 'thief', skillId: 4000000, name: 'Nimble Body', maxLevel: 20, icon: 'assets/skill/nimble_body_icon.png',
-    fx: function (x) { return { eva: 22 * eq(x, 10, 20) }; }, info: function (x) { return 'Evasión +' + Math.round(22 * eq(x, 10, 20)); }
+    fx: function (x) { return { eva: 22 * eq(x, 10, 20) }; }, info: function (x) { return $t('Evasión +{0}', Math.round(22 * eq(x, 10, 20))); }
   });
   SKILLS.shadowHeart = passive({   // Pirate, 5000007
     id: 'shadowHeart', cls: 'pirate', skillId: 5000007, name: 'Shadow Heart', maxLevel: 10, icon: 'assets/skill/shadow_heart_icon.png',
-    fx: function (x) { return { crit: 2 * x / 100, critDmg: x / 100 }; }, info: function (x) { return 'Crítico ' + 2 * x + '% · daño crítico +' + x + '%'; }
+    fx: function (x) { return { crit: 2 * x / 100, critDmg: x / 100 }; }, info: function (x) { return $t('Crítico {0}% · daño crítico +{1}%', 2 * x, x); }
   });
   SKILLS.bulletTime = passive({   // Pirate, 5000000: velocidad (la precisión y el salto no se usan)
     id: 'bulletTime', cls: 'pirate', skillId: 5000000, name: 'Bullet Time', maxLevel: 10, icon: 'assets/skill/bullet_time_icon.png',
-    fx: function (x) { return { speed: 2 * x / 100 }; }, info: function (x) { return 'Velocidad +' + 2 * x + '%'; }
+    fx: function (x) { return { speed: 2 * x / 100 }; }, info: function (x) { return $t('Velocidad +{0}%', 2 * x); }
   });
   SKILLS.dash = {   // Pirate, 5001005: buff de velocidad
     id: 'dash', cls: 'pirate', skillId: 5001005, name: 'Dash', maxLevel: 10, buff: 'dash',
@@ -155,34 +156,34 @@
     mods: function (x) { return { speed: 5 * x / 100 }; }, duration: function (x) { return 4 * u(x / 2); },
     mpCon: function (x) { return 10 - x; }, renewAt: 3, hitAt: 0.25, total: 0.6,
     effectDelay: 100, effect: [{ ox: 44, oy: 91 }, { ox: 40, oy: 93 }, { ox: 32, oy: 96 }, { ox: 14, oy: 88 }, { ox: -20, oy: 73 }, { ox: -40, oy: 66 }],
-    info: function (x) { return 'Velocidad +' + 5 * x + '% · ' + this.duration(x) + ' s'; }
+    info: function (x) { return $t('Velocidad +{0}% · {1} s', 5 * x, this.duration(x)); }
   };
   SKILLS.hpBoost = passive({   // Pirate, 15000008
     id: 'hpBoost', cls: 'pirate', skillId: 15000008, name: 'HP Boost', maxLevel: 10, icon: 'assets/skill/hp_boost_icon.png',
-    fx: function (x) { return { hpPct: 2 * x / 100 }; }, info: function (x) { return 'HP máx. +' + 2 * x + '%'; }
+    fx: function (x) { return { hpPct: 2 * x / 100 }; }, info: function (x) { return $t('HP máx. +{0}%', 2 * x); }
   });
   /* ---------- Skills de 2do job (etapa 31): Fighter (110.img) ----------
    * job: 2 -> usan el fondo de SP del 2do job (Lv30-69 = 120 SP). `branches` = rama que las puede usar. `req` = {skill: nivel mínimo} (nodo req del WZ). */
   var FT = ['fighter'];
   SKILLS.ftWeaponMastery = passive({   // 1100000: maestría = daño mínimo / máximo (10+2x %)
     id: 'ftWeaponMastery', cls: 'warrior', branches: FT, job: 2, skillId: 1100000, name: 'Weapon Mastery', maxLevel: 20, icon: 'assets/skill/ft_weapon_mastery_icon.png',
-    fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; }, info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; }, info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
   SKILLS.ftFinalAttack = passive({   // 1100002: tras un ataque normal, prob 2*x % de un golpe extra de 100+5*d(x/2) %
     id: 'ftFinalAttack', cls: 'warrior', branches: FT, job: 2, skillId: 1100002, name: 'Final Attack', maxLevel: 20, icon: 'assets/skill/ft_final_attack_icon.png', req: { ftWeaponMastery: 3 },
     finalAttack: true, prop: function (x) { return 2 * x; }, damage: function (x) { return 100 + 5 * Math.floor(x / 2); },
-    info: function (x) { return 'Tras un ataque normal: ' + this.prop(x) + '% de golpe extra de ' + this.damage(x) + '%'; },
+    info: function (x) { return $t('Tras un ataque normal: {0}% de golpe extra de {1}%', this.prop(x), this.damage(x)); },
     dir: 'assets/skill/ft_final_attack/', hit: [{ ox: 83, oy: 46 }, { ox: 74, oy: 51 }, { ox: 92, oy: 41 }], hitDelay: 50
   });
   SKILLS.ftPhysicalTraining = passive({   // 1100009 (WZ máx. 10, aquí 5): STR y DEX +3*x
     id: 'ftPhysicalTraining', cls: 'warrior', branches: FT, job: 2, skillId: 1100009, name: 'Physical Training', maxLevel: 5, icon: 'assets/skill/ft_physical_training_icon.png',
-    fx: function (x) { var v = eq(x, 10, 5); return { pStr: 3 * v, pDex: 3 * v }; }, info: function (x) { return 'STR y DEX +' + 3 * eq(x, 10, 5); }
+    fx: function (x) { var v = eq(x, 10, 5); return { pStr: 3 * v, pDex: 3 * v }; }, info: function (x) { return $t('STR y DEX +{0}', 3 * eq(x, 10, 5)); }
   });
   SKILLS.ftWeaponBooster = {   // 1101004: velocidad de ataque (-2 etapas) durante 10*x s
     id: 'ftWeaponBooster', cls: 'warrior', branches: FT, job: 2, skillId: 1101004, name: 'Weapon Booster', maxLevel: 20, buff: 'weaponBooster', req: { ftWeaponMastery: 5 },
     icon: 'assets/skill/ft_weapon_booster_icon.png', dir: 'assets/skill/ft_weapon_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 31 - x; }, renewAt: 5,
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.25, total: 0.6, effectDelay: 55,
     effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -190,7 +191,7 @@
     id: 'ftRage', cls: 'warrior', branches: FT, job: 2, skillId: 1101006, name: 'Rage', maxLevel: 20, buff: 'rage', party: true,
     icon: 'assets/skill/ft_rage_icon.png', dir: 'assets/skill/ft_rage/',
     mods: function (x) { return { att: 10 + x }; }, duration: function (x) { return 55 + 5 * x; }, mpCon: function (x) { return 4 + 8 * u(x / 10); }, renewAt: 8,
-    info: function (x) { return 'ATT +' + (10 + x) + ' al party · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('ATT +{0} al party · {1} s', 10 + x, this.duration(x)); },
     hitAt: 0.3, total: 0.84, effectDelay: 60,
     effect: [[30, 43], [42, 73], [45, 81], [46, 85], [63, 85], [61, 128], [66, 121], [68, 120], [68, 118], [44, 123], [43, 132], [41, 140], [40, 138], [33, 143]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -198,7 +199,7 @@
     id: 'ftPowerReflection', cls: 'warrior', branches: FT, job: 2, skillId: 1101007, name: 'Power Reflection', maxLevel: 20, buff: 'powerReflection', req: { ftRage: 3 },
     icon: 'assets/skill/ft_power_reflection_icon.png', dir: 'assets/skill/ft_power_reflection/',
     mods: function (x) { return { reflect: 10 + x, reflectMax: 100 + 20 * x }; }, duration: function (x) { return 60 + 6 * x; }, mpCon: function (x) { return 10 + Math.floor(x / 2); }, renewAt: 8,
-    info: function (x) { return 'Refleja ' + (10 + x) + '% del daño recibido (máx. ' + (100 + 20 * x) + ') · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Refleja {0}% del daño recibido (máx. {1}) · {2} s', 10 + x, 100 + 20 * x, this.duration(x)); },
     hitAt: 0.3, total: 0.84, effectDelay: 60,
     effect: [[57, 127], [57, 130], [57, 119], [57, 115], [57, 104], [57, 103], [57, 102], [56, 102], [57, 102], [50, 102], [51, 102], [40, 102], [32, 102], [32, 102]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -217,7 +218,7 @@
     id: 'ftWarriorLeap', cls: 'warrior', branches: FT, job: 2, skillId: 1101010, name: 'Warrior Leap', maxLevel: 5, teleportSkill: true, leap: true,
     icon: 'assets/skill/ft_warrior_leap_icon.png',
     mpCon: function (x) { return 65 - 5 * eq(x, 10, 5); }, dist: function (x) { return 140 + 10 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0,
-    info: function (x) { return 'Empujón desde el suelo: ' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); }
+    info: function (x) { return $t('Empujón desde el suelo: {0} px al frente · MP {1}', this.dist(x), this.mpCon(x)); }
   };
 
   /* ---------- Page (120.img): comparte con el Fighter Weapon Mastery, Final Attack, Physical Training, Weapon Booster, Ground Smash y Warrior Leap
@@ -238,7 +239,7 @@
     icon: 'assets/skill/pg_threaten_icon.png', dir: 'assets/skill/pg_threaten/',
     mpCon: function (x) { return 12 + 3 * u(x / 5); }, duration: function (x) { return 40 + 2 * x; }, prop: function (x) { return 40 + x; }, dmgDown: function (x) { return 10 + x; },
     mobCount: 6, range: { x1: -300, x2: 300, y1: -200, y2: 200 }, hitAt: 0.25, total: 0.75, effectDelay: 60,
-    info: function (x) { return 'Enemigos cercanos (hasta 6): ' + this.prop(x) + '% de bajarles el daño -' + this.dmgDown(x) + '% durante ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Enemigos cercanos (hasta 6): {0}% de bajarles el daño -{1}% durante {2} s', this.prop(x), this.dmgDown(x), this.duration(x)); },
     effect: [[27, 60], [27, 60], [73, 163], [124, 201], [123, 200], [123, 200], [123, 200], [125, 208], [121, 224], [129, 232], [129, 232], [129, 232]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
     mobFx: [[18, 5], [16, 4], [4, 7], [4, 11], [11, 11], [9, 8], [2, 14], [5, 17]], mobFxDelay: 70
   };
@@ -246,7 +247,7 @@
     id: 'pgPowerGuard', cls: 'warrior', branches: ['page'], job: 2, skillId: 1201007, name: 'Power Guard', maxLevel: 20, buff: 'powerGuard', req: { pgThreaten: 3 },
     icon: 'assets/skill/pg_power_guard_icon.png', dir: 'assets/skill/pg_power_guard/',
     mods: function (x) { return { reflect: 10 + 2 * x, reflectMax: 20 + 4 * x }; }, duration: function (x) { return 60 + 6 * x; }, mpCon: function (x) { return 10 + Math.floor(x / 2); }, renewAt: 8,
-    info: function (x) { return 'Refleja ' + (10 + 2 * x) + '% del daño recibido (máx. ' + (20 + 4 * x) + ') · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Refleja {0}% del daño recibido (máx. {1}) · {2} s', 10 + 2 * x, 20 + 4 * x, this.duration(x)); },
     hitAt: 0.3, total: 0.84, effectDelay: 60,
     effect: [[57, 127], [57, 130], [57, 119], [57, 115], [57, 104], [57, 103], [57, 102], [56, 102], [57, 102], [50, 102], [51, 102], [40, 102], [32, 102], [32, 102]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -263,7 +264,7 @@
     id: 'spIronWill', cls: 'warrior', branches: ['spearman'], job: 2, skillId: 1301006, name: 'Iron Will', maxLevel: 20, buff: 'ironWill',
     icon: 'assets/skill/sp_iron_will_icon.png', dir: 'assets/skill/sp_iron_will/',
     mods: function (x) { return { def: 15 * x * 0.25 }; }, duration: function (x) { return 40 + 10 * x; }, mpCon: function (x) { return 12 + 3 * u(x / 5); }, renewAt: 10,
-    info: function (x) { return 'DEF +' + Math.round(15 * x * 0.25 * 10) / 10 + ' al party · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('DEF +{0} al party · {1} s', Math.round(15 * x * 0.25 * 10) / 10, this.duration(x)); },
     hitAt: 0.3, total: 0.9, effectDelay: 55,
     effect: [[46, 7], [46, 16], [46, 22], [46, 35], [46, 54], [46, 54], [46, 53], [46, 53], [46, 53], [46, 53], [46, 53], [47, 53], [47, 141], [47, 146], [47, 137], [47, 139]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -271,7 +272,7 @@
     id: 'spHyperBody', cls: 'warrior', branches: ['spearman'], job: 2, skillId: 1301007, name: 'Hyper Body', maxLevel: 20, buff: 'hyperBody', req: { spIronWill: 3 },
     icon: 'assets/skill/sp_hyper_body_icon.png', dir: 'assets/skill/sp_hyper_body/',
     mods: function (x) { return { hpPct: 3 * x / 100, mpPct: 3 * x / 100 }; }, duration: function (x) { return 15 * x; }, mpCon: function (x) { return 20 * u(x / 7); }, renewAt: 10,
-    info: function (x) { return 'HP y MP máx. +' + 3 * x + '% al party · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('HP y MP máx. +{0}% al party · {1} s', 3 * x, this.duration(x)); },
     hitAt: 0.3, total: 0.72, effectDelay: 60,
     effect: [[39, 170], [42, 190], [43, 197], [43, 202], [44, 203], [44, 204], [44, 204], [68, 157], [68, 155], [73, 152], [60, 100], [62, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -283,11 +284,11 @@
   SKILLS.fpMpEater = passive({   // 2100000: al golpear con magia, prob x % de absorber u(x/2) % del MP del enemigo. Pide Spell Mastery 5
     id: 'fpMpEater', cls: 'mage', branches: FP, job: 2, skillId: 2100000, name: 'MP Eater', maxLevel: 20, icon: 'assets/skill/fp_mp_eater_icon.png', req: { fpSpellMastery: 5 },
     mpEater: true, prop: function (x) { return x; }, pct: function (x) { return u(x / 2); }, fx: function () { return {}; },
-    info: function (x) { return 'Al golpear: ' + this.prop(x) + '% de absorber ' + this.pct(x) + '% del MP del enemigo'; }
+    info: function (x) { return $t('Al golpear: {0}% de absorber {1}% del MP del enemigo', this.prop(x), this.pct(x)); }
   });
   SKILLS.fpSpellMastery = passive({   // 2100006: maestría 10+2x %
     id: 'fpSpellMastery', cls: 'mage', branches: FP, job: 2, skillId: 2100006, name: 'Spell Mastery', maxLevel: 20, icon: 'assets/skill/fp_spell_mastery_icon.png',
-    fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; }, info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; }, info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
   SKILLS.fpHighWisdom = passive({   // 2100007: INT +4x
     id: 'fpHighWisdom', cls: 'mage', branches: FP, job: 2, skillId: 2100007, name: 'High Wisdom', maxLevel: 10, icon: 'assets/skill/fp_high_wisdom_icon.png',
@@ -300,13 +301,13 @@
     dir: 'assets/skill/fp_ignite/', tiles: [[[16, 50], [16, 50], [16, 48], [16, 49], [16, 51], [16, 51], [16, 52]], [[28, 60], [28, 61], [28, 61], [28, 61], [28, 62], [28, 62], [28, 63]], [[51, 83], [53, 84], [54, 81], [54, 83], [54, 85], [53, 85], [52, 86]]], tileDelay: 120,
     hit: [[53, 126], [49, 92], [49, 96], [47, 95], [45, 94], [40, 91]].map(function (a) { return { ox: a[0], oy: a[1] }; }), hitDelay: 120,
     fx: function () { return {}; },
-    info: function (x) { return 'Con skills de fuego: ' + this.prop(x) + '% de dejar fuego ' + this.time(x) + ' s (' + this.damage(x) + '% cada 1,5 s)'; }
+    info: function (x) { return $t('Con skills de fuego: {0}% de dejar fuego {1} s ({2}% cada 1,5 s)', this.prop(x), this.time(x), this.damage(x)); }
   });
   SKILLS.fpMeditate = {   // 2101001 (massSpell): ATT mágico +10+x al party del mapa; 10*x s. Pide MP Eater 3
     id: 'fpMeditate', cls: 'mage', branches: FP, job: 2, skillId: 2101001, name: 'Meditate', maxLevel: 20, buff: 'meditate', req: { fpMpEater: 3 },
     icon: 'assets/skill/fp_meditate_icon.png', dir: 'assets/skill/fp_meditate/',
     mods: function (x) { return { matt: 10 + x }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 10 + Math.floor(x / 3); }, renewAt: 5,
-    info: function (x) { return 'ATT mágico +' + (10 + x) + ' al party · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('ATT mágico +{0} al party · {1} s', 10 + x, this.duration(x)); },
     hitAt: 0.3, total: 0.81, effectDelay: 45,
     effect: [[26, 9], [29, 14], [33, 26], [62, 100], [66, 98], [64, 94], [61, 106], [68, 116], [68, 126], [71, 133], [69, 135], [68, 139], [67, 148], [66, 152], [66, 151], [66, 151], [65, 139], [47, 148]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -314,7 +315,7 @@
     id: 'fpMagicBooster', cls: 'mage', branches: FP, job: 2, skillId: 2101008, name: 'Magic Booster', maxLevel: 10, buff: 'magicBooster',
     icon: 'assets/skill/fp_magic_booster_icon.png', dir: 'assets/skill/fp_magic_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 40 + 20 * x; }, mpCon: function (x) { return 60 - 4 * x; }, renewAt: 8,
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.3, total: 0.86, effectDelay: 45,
     effect: [[109, 119], [106, 113], [103, 107], [96, 96], [96, 93], [86, 87], [86, 81], [87, 83], [88, 88], [88, 87], [88, 94], [88, 100], [85, 99], [64, 111], [53, 99], [54, 100], [51, 99], [51, 99], [50, 98]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -345,27 +346,27 @@
 	  SKILLS.htBowMastery = passive({
 		id: 'htBowMastery', cls: 'archer', branches: HT, job: 2, skillId: 3100000, name: 'Bow Mastery', maxLevel: 20, icon: 'assets/skill/ht_bow_mastery_icon.png',
 		fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; },
-		info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+		info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
 	  });
 
 	  SKILLS.htFinalAttack = passive({
 		id: 'htFinalAttack', cls: 'archer', branches: HT, job: 2, skillId: 3100001, name: 'Final Attack', maxLevel: 20, icon: 'assets/skill/ht_final_attack_icon.png', req: { htBowMastery: 3 },
 		finalAttack: true, prop: function (x) { return 2 * x; }, damage: function (x) { return 100 + 5 * Math.floor(x / 2); },
-		info: function (x) { return 'Tras un ataque normal: ' + this.prop(x) + '% de golpe extra de ' + this.damage(x) + '%'; },
+		info: function (x) { return $t('Tras un ataque normal: {0}% de golpe extra de {1}%', this.prop(x), this.damage(x)); },
 		dir: 'assets/skill/ht_final_attack/', hit: [{ ox: 47, oy: 49 }, { ox: 53, oy: 57 }, { ox: 55, oy: 53 }], hitDelay: 50
 	  });
 
 	  SKILLS.htPhysicalTraining = passive({
 		id: 'htPhysicalTraining', cls: 'archer', branches: HT, job: 2, skillId: 3100006, name: 'Physical Training', maxLevel: 10, icon: 'assets/skill/ht_physical_training_icon.png',
 		fx: function (x) { return { pStr: 3 * x, pDex: 3 * x }; },
-		info: function (x) { return 'STR y DEX +' + (3 * x); }
+		info: function (x) { return $t('STR y DEX +{0}', 3 * x); }
 	  });
 
 	  SKILLS.htBowBooster = {
 		id: 'htBowBooster', cls: 'archer', branches: HT, job: 2, skillId: 3101002, name: 'Bow Booster', maxLevel: 20, buff: 'bowBooster', req: { htBowMastery: 5 },
 		icon: 'assets/skill/ht_bow_booster_icon.png', dir: 'assets/skill/ht_bow_booster/',
 		mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 31 - x; }, renewAt: 5,
-		info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+		info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
 		hitAt: 0.25, total: 0.6, effectDelay: 90,
 		effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
 	  };
@@ -374,7 +375,7 @@
 		id: 'htFlashJump', cls: 'archer', branches: HT, job: 2, skillId: 3101003, name: 'Flash Jump', maxLevel: 5, teleportSkill: true, leap: true,
 		icon: 'assets/skill/ht_flash_jump_icon.png', dir: 'assets/skill/ht_flash_jump/',
 		mpCon: function (x) { return 30 - 2 * eq(x, 10, 5); }, dist: function (x) { return 80 + 5 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0, fjLift: -480, fjDur: 0.22,   // Flash Jump (arquero): salta y en el aire da el impulso: MÁS ALTURA que alcance
-		info: function (x) { return 'Salta y da un 2º impulso en el aire: +' + this.dist(x) + ' px al frente y mucha altura extra · MP ' + this.mpCon(x); },
+		info: function (x) { return $t('Salta y da un 2º impulso en el aire: +{0} px al frente y mucha altura extra · MP {1}', this.dist(x), this.mpCon(x)); },
 		effectDelay: 120,
 		effect: [[0, 0], [48, 85], [39, 83], [40, 80], [38, 75], [-37, 59]].map(function (a) { return { ox: a[0], oy: a[1] }; })
 	  };
@@ -410,7 +411,7 @@
 		prop: function (x) { return Math.floor(10 + x); },
 		damage: function (x) { return 120 + 5 * x; },
 		mobCount: 4,
-		info: function (x) { return 'Al atacar: ' + this.prop(x) + '% de chance de disparar flechas de alma extra a ' + this.mobCount + ' enemigos (' + this.damage(x) + '% de daño)'; },
+		info: function (x) { return $t('Al atacar: {0}% de chance de disparar flechas de alma extra a {1} enemigos ({2}% de daño)', this.prop(x), this.mobCount, this.damage(x)); },
 		ball: { speed: 1000, origin: [[34, 13], [31, 13]], delay: 90, startY: 30 }
 	  });
 	  
@@ -444,26 +445,26 @@
   SKILLS.asClawMastery = passive({
     id: 'asClawMastery', cls: 'thief', branches: AS, job: 2, skillId: 4100000, name: 'Claw Mastery', maxLevel: 20, icon: 'assets/skill/as_claw_mastery_icon.png',
     fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; },
-    info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
 
   SKILLS.asCriticalThrow = passive({
     id: 'asCriticalThrow', cls: 'thief', branches: AS, job: 2, skillId: 4100001, name: 'Critical Throw', maxLevel: 30, icon: 'assets/skill/as_critical_throw_icon.png', req: { asClawMastery: 3 },
     fx: function (x) { return { crit: (5 + 3 * Math.floor(x / 2)) / 100, critDmg: Math.ceil(x / 2) / 100 }; },
-    info: function (x) { return 'Probabilidad de crítico +' + (5 + 3 * Math.floor(x / 2)) + '% · Daño crítico +' + Math.ceil(x / 2) + '%'; }
+    info: function (x) { return $t('Probabilidad de crítico +{0}% · Daño crítico +{1}%', 5 + 3 * Math.floor(x / 2), Math.ceil(x / 2)); }
   });
 
   SKILLS.asPhysicalTraining = passive({
     id: 'asPhysicalTraining', cls: 'thief', branches: AS, job: 2, skillId: 4100007, name: 'Physical Training', maxLevel: 10, icon: 'assets/skill/as_physical_training_icon.png',
     fx: function (x) { return { pLuk: 3 * x, pDex: 3 * x }; },
-    info: function (x) { return 'LUK y DEX +' + (3 * x); }
+    info: function (x) { return $t('LUK y DEX +{0}', 3 * x); }
   });
 
   SKILLS.asClawBooster = {
     id: 'asClawBooster', cls: 'thief', branches: AS, job: 2, skillId: 4101003, name: 'Claw Booster', maxLevel: 20, buff: 'clawBooster', req: { asClawMastery: 5 },
     icon: 'assets/skill/as_claw_booster_icon.png', dir: 'assets/skill/as_claw_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 31 - x; }, renewAt: 5,
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.25, total: 0.6, effectDelay: 90,
     effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -472,7 +473,7 @@
     id: 'asFlashJump', cls: 'thief', branches: AS, job: 2, skillId: 4101009, name: 'Flash Jump', maxLevel: 5, teleportSkill: true, leap: true,
     icon: 'assets/skill/as_flash_jump_icon.png', dir: 'assets/skill/as_flash_jump/', // Usar las imágenes del arquero si no extrajiste las del thief
     mpCon: function (x) { return 42 - 2 * eq(x, 10, 5); }, dist: function (x) { return 140 + 9 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0, fjLift: -160, fjDur: 0.28,   // Flash Jump (thief): salta y en el aire da el impulso: MÁS ALCANCE que altura
-    info: function (x) { return 'Salta y se impulsa en el aire: +' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); }
+    info: function (x) { return $t('Salta y se impulsa en el aire: +{0} px al frente · MP {1}', this.dist(x), this.mpCon(x)); }
   };
 
   SKILLS.asShurikenBurst = {   // 4101008: WZ ball 3 frames + effect 7 frames (origins del WZ)
@@ -511,7 +512,7 @@
     icon: 'assets/skill/as_mark_icon.png', dir: 'assets/skill/as_mark/',
     prop: function (x) { return 40; }, damage: function (x) { return 30; }, markTime: 20, armTime: 0.4,
     mobCount: 2, bulletCount: 2, range: 1000,
-    info: function (x) { return 'Marca a los enemigos con 40% de chance. Al golpear a un enemigo marcado, dispara ' + this.bulletCount + ' estrellas a ' + this.mobCount + ' enemigos cercanos (' + this.damage(x) + '% daño).'; },
+    info: function (x) { return $t('Marca a los enemigos con 40% de chance. Al golpear a un enemigo marcado, dispara {0} estrellas a {1} enemigos cercanos ({2}% daño).', this.bulletCount, this.mobCount, this.damage(x)); },
     mobFx: [[23, 45], [23, 45], [23, 46], [22, 47], [23, 47], [23, 45], [23, 44], [22, 43]],
     mobFxDelay: 90
   });
@@ -521,27 +522,27 @@
   SKILLS.bwKnuckleMastery = passive({
     id: 'bwKnuckleMastery', cls: 'pirate', branches: BW, job: 2, skillId: 5100001, name: 'Knuckle Mastery', maxLevel: 20, icon: 'assets/skill/bw_knuckle_mastery_icon.png',
     fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; }, // 10+2*x
-    info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
 
   SKILLS.bwPhysicalTraining = passive({
     id: 'bwPhysicalTraining', cls: 'pirate', branches: BW, job: 2, skillId: 5100010, name: 'Physical Training', maxLevel: 10, icon: 'assets/skill/bw_physical_training_icon.png',
     fx: function (x) { return { pStr: 3 * x, pDex: 3 * x }; }, // 3*x[cite: 21]
-    info: function (x) { return 'STR y DEX +' + 3 * x; }
+    info: function (x) { return $t('STR y DEX +{0}', 3 * x); }
   });
 
   SKILLS.bwPerseverance = passive({
     id: 'bwPerseverance', cls: 'pirate', branches: BW, job: 2, skillId: 5100013, name: 'Perseverance', maxLevel: 10, icon: 'assets/skill/bw_perseverance_icon.png',
     // Recupera HP/MP adicional con el tiempo. Lo ligaremos más adelante en stepExtras.
     fx: function (x) { return { hpRec: Math.ceil(x / 2), mpRec: Math.ceil(x / 2), recT: 15 - x }; },   // cada (15-x) s recupera ceil(x/2)% del HP y MP máximos
-    info: function (x) { return 'Recupera +' + Math.ceil(x / 2) + '% extra de HP/MP cada ' + (15 - x) + 's.'; }
+    info: function (x) { return $t('Recupera +{0}% extra de HP/MP cada {1}s.', Math.ceil(x / 2), 15 - x); }
   });
 
   SKILLS.bwKnuckleBooster = {
     id: 'bwKnuckleBooster', cls: 'pirate', branches: BW, job: 2, skillId: 5101006, name: 'Knuckle Booster', maxLevel: 20, buff: 'knuckleBooster', req: { bwKnuckleMastery: 5 },
     icon: 'assets/skill/bw_knuckle_booster_icon.png', dir: 'assets/skill/bw_knuckle_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 31 - x; }, renewAt: 5, // 10*x, 31-1*x[cite: 21]
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.25, total: 0.6, effectDelay: 90,
     effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; }) //[cite: 21]
   };
@@ -550,7 +551,7 @@
     id: 'bwDarkClarity', cls: 'pirate', branches: BW, job: 2, skillId: 5101011, name: 'Dark Clarity', maxLevel: 20, buff: 'darkClarity',
     icon: 'assets/skill/bw_dark_clarity_icon.png', dir: 'assets/skill/bw_dark_clarity/',
     mods: function (x) { return { att: x + Math.floor(x / 2) }; }, duration: function (x) { return 60 + 6 * x; }, mpCon: function (x) { return 14 + Math.ceil(x / 2); }, renewAt: 5, // x+d(x/2), 60+6*x, 14+u(x/2)[cite: 21]
-    info: function (x) { return 'ATT +' + (x + Math.floor(x / 2)) + ' · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('ATT +{0} · {1} s', x + Math.floor(x / 2), this.duration(x)); },
     hitAt: 0.3, total: 0.7, effectDelay: 120,
     effect: [[79, 134], [92, 134], [96, 133], [95, 129], [91, 117], [80, 103], [57, 84], [31, 62], [81, 114], [70, 102], [72, 102], [73, 99], [74, 93], [58, 88], [55, 86]].map(function (a) { return { ox: a[0], oy: a[1] }; }) //[cite: 21]
   };
@@ -587,26 +588,26 @@
   SKILLS.bdDaggerMastery = passive({
     id: 'bdDaggerMastery', cls: 'thief', branches: BD, job: 2, skillId: 4200000, name: 'Dagger Mastery', maxLevel: 20, icon: 'assets/skill/bd_dagger_mastery_icon.png',
     fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; },
-    info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
 
   SKILLS.bdPhysicalTraining = passive({
     id: 'bdPhysicalTraining', cls: 'thief', branches: BD, job: 2, skillId: 4200007, name: 'Physical Training', maxLevel: 10, icon: 'assets/skill/bd_physical_training_icon.png',
     fx: function (x) { return { pLuk: 3 * x, pDex: 3 * x }; },
-    info: function (x) { return 'LUK y DEX +' + (3 * x); }
+    info: function (x) { return $t('LUK y DEX +{0}', 3 * x); }
   });
 
   SKILLS.bdShieldMastery = passive({
     id: 'bdShieldMastery', cls: 'thief', branches: BD, job: 2, skillId: 4200010, name: 'Shield Mastery', maxLevel: 10, icon: 'assets/skill/bd_shield_mastery_icon.png',
     fx: function (x) { return { def: 11 * x }; }, 
-    info: function (x) { return 'Al llevar escudo: Defensa (DEF) +' + (11 * x) + ' (Efecto aplicado de forma permanente por ahora).'; }
+    info: function (x) { return $t('Al llevar escudo: Defensa (DEF) +{0} (Efecto aplicado de forma permanente por ahora).', 11 * x); }
   });
 
   SKILLS.bdDaggerBooster = {
     id: 'bdDaggerBooster', cls: 'thief', branches: BD, job: 2, skillId: 4201002, name: 'Dagger Booster', maxLevel: 20, buff: 'daggerBooster', req: { bdDaggerMastery: 5 },
     icon: 'assets/skill/bd_dagger_booster_icon.png', dir: 'assets/skill/bd_dagger_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 30 - x; }, renewAt: 5,
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.25, total: 0.6, effectDelay: 90,
     effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -620,7 +621,7 @@
     splash: true, splashCount: 4,
     splashRange: { x1: -100, x2: 100, y1: -80, y2: 80 },
     splashFalloff: 0.7,
-    info: function (x) { return 'Al atacar, hay ' + this.prop(x) + '% de probabilidad de asestar un ataque Steal extra (' + this.damage(x) + '% daño, con salpicadura a enemigos cercanos). Si acierta el robo (30% chance), obtienes ATT +30 por 60 s.'; },
+    info: function (x) { return $t('Al atacar, hay {0}% de probabilidad de asestar un ataque Steal extra ({1}% daño, con salpicadura a enemigos cercanos). Si acierta el robo (30% chance), obtienes ATT +30 por 60 s.', this.prop(x), this.damage(x)); },
     effectDelay: 110,
     effect: [[5, 37], [-9, 40], [-14, 45], [-14, 47]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
     effect0: [[25, 62], [41, 59], [197, 49], [271, 59], [272, 58], [272, 58]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
@@ -632,7 +633,7 @@
     id: 'bdFlashJump', cls: 'thief', branches: BD, job: 2, skillId: 4201008, name: 'Flash Jump', maxLevel: 5, teleportSkill: true, leap: true,
     icon: 'assets/skill/bd_flash_jump_icon.png', dir: 'assets/skill/as_flash_jump/', // Usamos los efectos que extrajiste previamente del Assassin
     mpCon: function (x) { return 42 - 2 * x; }, dist: function (x) { return 140 + 9 * eq(x, 10, 5); }, vert: function (x) { return 90; }, cooldown: 1.0, fjLift: -160, fjDur: 0.28,
-    info: function (x) { return 'Salta y se impulsa en el aire: +' + this.dist(x) + ' px al frente · MP ' + this.mpCon(x); }
+    info: function (x) { return $t('Salta y se impulsa en el aire: +{0} px al frente · MP {1}', this.dist(x), this.mpCon(x)); }
   };
 
   SKILLS.bdChannelKarma = {
@@ -640,7 +641,7 @@
     icon: 'assets/skill/bd_channel_karma_icon.png', dir: 'assets/skill/bd_channel_karma/',
     mods: function (x) { return { att: 30 }; }, // Simplificado para que otorgue +30 ATT (el original escala distinto pero mantendremos este valor fuerte)
     duration: function (x) { return 60 + 6 * x; }, mpCon: function (x) { return 15; }, renewAt: 5,
-    info: function (x) { return 'Poder de Ataque (ATT) +30 · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Poder de Ataque (ATT) +30 · {0} s', this.duration(x)); },
     hitAt: 0.3, total: 0.8, effectDelay: 90,
     effect: [[27, 165], [36, 178], [39, 207], [92, 220], [93, 230], [93, 231], [93, 231], [93, 231], [93, 231], [93, 230], [92, 228], [88, 225], [80, 216], [82, 215], [84, 212], [84, 208], [66, 207], [63, 204], [49, 196], [46, 193], [24, 171]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -671,7 +672,7 @@
   SKILLS.ilFreezingCrush = passive({
     id: 'ilFreezingCrush', cls: 'mage', branches: IL, job: 2, skillId: 2200011, name: 'Freezing Crush', maxLevel: 1, hidden: true, free: true,
     icon: 'assets/skill/il_freezing_crush_icon.png', dir: 'assets/skill/il_freezing_crush/',
-    info: function (x) { return 'Los ataques de hielo aplican marcas. Los ataques de rayo consumen las marcas infligiendo +8% de daño por carga (máx 5).'; },
+    info: function (x) { return $t('Los ataques de hielo aplican marcas. Los ataques de rayo consumen las marcas infligiendo +8% de daño por carga (máx 5).'); },
     mobFxDelay: 120, // Animación a 120ms según el WZ
     mobFx: [
       [[21, 29], [29, 30], [31, 31], [31, 30], [27, 29], [27, 28]].map(function(a){ return {ox: a[0], oy: a[1]}; }), // Carga 1
@@ -736,7 +737,7 @@
     id: 'crInvincible', cls: 'mage', branches: CR, job: 2, skillId: 2301003, name: 'Invincible', maxLevel: 10, buff: 'invincible', req: { crHeal: 5 },
     icon: 'assets/skill/cr_invincible_icon.png', dir: 'assets/skill/cr_invincible/',
     mods: function (x) { return { physReduce: 5 + x }; }, duration: function (x) { return 20 * x; }, mpCon: function (x) { return 15 + 3 * Math.floor(x / 3); }, renewAt: 10,
-    info: function (x) { return 'Reduce el daño físico recibido un ' + this.mods(x).physReduce + '% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Reduce el daño físico recibido un {0}% · {1} s', this.mods(x).physReduce, this.duration(x)); },
     hitAt: 0.3, total: 0.8, effectDelay: 100,
     effect: [[23, 6], [28, 9], [28, 166], [28, 170], [66, 171], [69, 174], [67, 168], [66, 167], [66, 168], [76, 159], [89, 173]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -749,7 +750,7 @@
     mods: function (x) { return { def: 30 * x, eva: 18 * x, att: Math.floor(1.5 * x), matt: Math.floor(1.5 * x) }; }, 
     duration: function (x) { return 24 * x; }, 
     mpCon: function (x) { return 10 + Math.floor(1.5 * x); }, renewAt: 10,
-    info: function (x) { return 'DEF +' + (30 * x) + ', EVA +' + (18 * x) + ', ATT/MATT +' + Math.floor(1.5 * x) + ' al party · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('DEF +{0}, EVA +{1}, ATT/MATT +{2} al party · {3} s', 30 * x, 18 * x, Math.floor(1.5 * x), this.duration(x)); },
     hitAt: 0.3, total: 0.8, effectDelay: 120,
     effect: [[18, 11], [26, 16], [32, 22], [31, 24], [70, 191], [65, 191], [59, 189], [49, 184], [48, 133], [48, 123]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -777,7 +778,7 @@
     id: 'cbCrossbowMastery', cls: 'archer', branches: CB, job: 2, skillId: 3200000, name: 'Crossbow Mastery', maxLevel: 20,
     icon: 'assets/skill/cb_crossbow_mastery_icon.png',
     fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; },
-    info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
 
   cloneJob2(SKILLS.htFinalAttack, 'cbFinalAttack', 'crossbowman', 3200001, 'cb', 'ht', {
@@ -794,7 +795,7 @@
     id: 'cbCrossbowBooster', cls: 'archer', branches: CB, job: 2, skillId: 3201002, name: 'Crossbow Booster', maxLevel: 20, buff: 'crossbowBooster', req: { cbCrossbowMastery: 5 },
     icon: 'assets/skill/cb_crossbow_booster_icon.png', dir: 'assets/skill/cb_crossbow_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 31 - x; }, renewAt: 5,
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.25, total: 0.6, effectDelay: 90,
     effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -861,14 +862,14 @@
     id: 'gsGunMastery', cls: 'pirate', branches: GS, job: 2, skillId: 5200000, name: 'Gun Mastery', maxLevel: 20,
     icon: 'assets/skill/gs_gun_mastery_icon.png',
     fx: function (x) { return { mastery: (10 + 2 * x) / 100 }; },
-    info: function (x) { return 'Maestría ' + (10 + 2 * x) + '% (daño mínimo = ' + (10 + 2 * x) + '% del máximo)'; }
+    info: function (x) { return $t('Maestría {0}% (daño mínimo = {0}% del máximo)', 10 + 2 * x); }
   });
 
   SKILLS.gsGunBooster = {
     id: 'gsGunBooster', cls: 'pirate', branches: GS, job: 2, skillId: 5201003, name: 'Gun Booster', maxLevel: 20, buff: 'gunBooster', req: { gsGunMastery: 5 },
     icon: 'assets/skill/gs_gun_booster_icon.png', dir: 'assets/skill/gs_gun_booster/',
     mods: function () { return { atkSpeed: 0.25 }; }, duration: function (x) { return 10 * x; }, mpCon: function (x) { return 31 - x; }, renewAt: 5,
-    info: function (x) { return 'Velocidad de ataque +25% · ' + this.duration(x) + ' s'; },
+    info: function (x) { return $t('Velocidad de ataque +25% · {0} s', this.duration(x)); },
     hitAt: 0.25, total: 0.6, effectDelay: 90,
     effect: [[23, 50], [32, 57], [46, 72], [49, 69], [47, 66], [38, 66], [32, 70], [29, 71], [24, 69], [21, 64], [-8, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -911,7 +912,7 @@
     dist: function (x) { return 40; },   // margen horizontal para alinearse con la plataforma de arriba
     vert: function (x) { return 80 * x; },                 // 80 px por nivel → 400 px a nivel 5
     cooldown: 1.0,
-    info: function (x) { return 'Vuela a la plataforma de arriba (hasta ' + this.vert(x) + ' px) · MP ' + this.mpCon(x); },
+    info: function (x) { return $t('Vuela a la plataforma de arriba (hasta {0} px) · MP {1}', this.vert(x), this.mpCon(x)); },
     effectDelay: 90,
     effect: [[16, 29], [54, 27], [50, 27], [56, 27], [52, 27], [54, 27]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
@@ -928,7 +929,7 @@
     splashRange: { x1: -50, x2: 50, y1: -50, y2: 20 },
     range: { x1: -50, x2: 50, y1: -50, y2: 20 },
     fx: function () { return {}; },
-    info: function (x) { return 'Al atacar: ' + this.prop(x) + '% de chance de lanzar una granada (' + this.damage(x) + '% de daño en área a hasta 3 enemigos).'; },
+    info: function (x) { return $t('Al atacar: {0}% de chance de lanzar una granada ({1}% de daño en área a hasta 3 enemigos).', this.prop(x), this.damage(x)); },
     ball: { speed: 700, origin: [[15, 15], [14, 14], [15, 15], [14, 14], [15, 15], [14, 14], [15, 15], [14, 14]], delay: 30, startY: 20 },
     hit: [[25, 23], [35, 29], [41, 34], [49, 39], [33, 39], [39, 35], [46, 44]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
     hitDelay: 120,

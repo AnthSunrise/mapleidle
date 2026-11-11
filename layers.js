@@ -41,14 +41,15 @@
     var list = gather(look, ids, action, f); if (!list) return null;
     var present = [BODY, HEAD, look.face, look.hair].concat(ids).filter(function (id) { return D.items[id]; });
     // ocultar capas tapadas por un ítem de mayor prioridad (vslot de otro ítem ∩ smap de la capa)
-    list = list.filter(function (e) {
+    // (las capas ocultas siguen sirviendo de ancla: p.ej. una máscara que oculta la cabeza se engancha al 'brow' de la cabeza oculta)
+    function visible(e) {
       var t = toks(D.smap[e.L.z]), mine = prio(slotOf(e.id)); if (!t.length) return true;
       for (var i = 0; i < present.length; i++) {
         var y = present[i]; if (y === e.id || prio(slotOf(y)) >= mine) continue;
         var v = toks(D.items[y].vslot); for (var k = 0; k < v.length; k++) if (t.indexOf(v[k]) >= 0) return false;
       }
       return true;
-    });
+    }
     // colocar: cada capa se engancha a un punto ya definido
     var anchors = {}, placed = [], pend = list.slice(), progress = true;
     function define(e, ox, oy) { placed.push({ e: e, x: ox, y: oy }); for (var n in e.L.m) if (!anchors[n]) anchors[n] = [ox + e.L.m[n][0], oy + e.L.m[n][1]]; }
@@ -63,6 +64,7 @@
       }
     }
     pend.forEach(function (e) { define(e, 0, 0); });
+    placed = placed.filter(function (p) { return visible(p.e); });
     placed.sort(function (a, b) { var za = ZI[a.e.L.z], zb = ZI[b.e.L.z]; return (zb === undefined ? 0 : zb) - (za === undefined ? 0 : za); });   // atrás -> adelante
     var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     placed.forEach(function (p) { var L = p.e.L, dx = p.x - L.o[0], dy = p.y - L.o[1]; p.dx = dx; p.dy = dy; x0 = Math.min(x0, dx); y0 = Math.min(y0, dy); x1 = Math.max(x1, dx + L.r[2]); y1 = Math.max(y1, dy + L.r[3]); });

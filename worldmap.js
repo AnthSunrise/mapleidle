@@ -1,6 +1,7 @@
 /* Mapa mundial (botón "Mapa", tecla M): eliges un mapa y con "Mover personajes..." marcas cuáles viajan allí. */
 (function () {
   'use strict';
+  var $t = window.$t || function (x) { return x; };
   var G = window.MAPLE_GAME, S = window.MapleSim, MAPS = window.MAPLE_MAPS || {}, WORLD = window.MAPLE_WORLD || [];
   if (!G || !S) return;
   var world = G.world, sel = null, isOpen = false, msg = '';
@@ -28,7 +29,7 @@
     return out.join(', ');
   }
   function render() {
-    win.innerHTML = ''; win.appendChild(el('div', 'wm-h', 'Mapa mundial'));
+    win.innerHTML = ''; win.appendChild(el('div', 'wm-h', $t('Mapa mundial')));
     var body = el('div', 'wm-body'), list = el('div', 'wm-list'), det = el('div', 'wm-det');
     WORLD.forEach(function (r) {
       var maps = Object.keys(MAPS).filter(function (id) { return MAPS[id].region === r[0]; });
@@ -42,30 +43,30 @@
     if (sel) {
       var M = MAPS[sel], ch = where(sel);
       det.appendChild(el('div', 'wm-h', M.name));
-      det.appendChild(el('div', '', 'Nivel recomendado: ' + M.lv + '  ·  Capacidad: ' + S.mapCount(world, sel) + ' / ' + S.mapLimit(sel)));
-      det.appendChild(el('div', '', 'Enemigos: ' + mobLine(sel)));
-      det.appendChild(el('div', '', 'Personajes aquí: ' + (ch.length ? ch.map(function (c) { return c.name; }).join(', ') : 'ninguno')));
-      var go = el('button', 'wm-go', 'Mover personajes...'); go.addEventListener('click', function () { openMove(sel); }); det.appendChild(go);
+      det.appendChild(el('div', '', $t('Nivel recomendado: {0}  ·  Capacidad: {1} / {2}', M.lv, S.mapCount(world, sel), S.mapLimit(sel))));
+      det.appendChild(el('div', '', $t('Enemigos: {0}', mobLine(sel))));
+      det.appendChild(el('div', '', $t('Personajes aquí: {0}', ch.length ? ch.map(function (c) { return c.name; }).join(', ') : $t('ninguno'))));
+      var go = el('button', 'wm-go', $t('Mover personajes...')); go.addEventListener('click', function () { openMove(sel); }); det.appendChild(go);
       if (msg) det.appendChild(el('div', '', msg));
-    } else det.appendChild(el('div', '', 'Elige un mapa de la lista para ver sus datos y mover personajes allí.'));
+    } else det.appendChild(el('div', '', $t('Elige un mapa de la lista para ver sus datos y mover personajes allí.')));
     body.appendChild(list); body.appendChild(det); win.appendChild(body);
   }
   function openMove(id) {
     var ov = el('div', 'wm-ov'), box = el('div', 'wm-box'), checks = [];
-    box.appendChild(el('div', 'wm-h', 'Mover a ' + MAPS[id].name));
-    var lim = S.mapLimit(id); box.appendChild(el('div', '', 'Capacidad: ' + S.mapCount(world, id) + ' / ' + lim + ' personajes'));
+    box.appendChild(el('div', 'wm-h', $t('Mover a {0}', MAPS[id].name)));
+    var lim = S.mapLimit(id); box.appendChild(el('div', '', $t('Capacidad: {0} / {1} personajes', S.mapCount(world, id), lim)));
     world.chars.forEach(function (c, i) {
       var dead = c.player.state === 'dead', here = c.mapId === id, low = c.stats.level < 10 && id !== 'henesys', row = el('label', 'wm-chk' + (dead || here || low ? ' dis' : '')), cb = document.createElement('input'); cb.type = 'checkbox';
       cb.disabled = dead || here || low; cb.checked = !cb.disabled && i === world.selected; checks.push(cb);
-      row.appendChild(cb); row.appendChild(el('span', '', c.name + '  Lv ' + c.stats.level + '  · ' + MAPS[c.mapId].name + (dead ? ' (muerto)' : here ? ' (ya está aquí)' : low ? ' (necesita Lv 10)' : ''))); box.appendChild(row);
+      row.appendChild(cb); row.appendChild(el('span', '', c.name + '  Lv ' + c.stats.level + '  · ' + MAPS[c.mapId].name + (dead ? ' (' + $t('muerto') + ')' : here ? ' (' + $t('ya está aquí') + ')' : low ? ' (' + $t('necesita Lv 10') + ')' : ''))); box.appendChild(row);
     });
-    var act = el('div', 'wm-act'), no = el('button', 'wm-go', 'Cancelar'), ok = el('button', 'wm-go', 'Mover');
+    var act = el('div', 'wm-act'), no = el('button', 'wm-go', $t('Cancelar')), ok = el('button', 'wm-go', $t('Mover'));
     no.addEventListener('click', function () { ov.remove(); });
     ok.addEventListener('click', function () {
       var moved = [], focusSel = false;
       var full = 0;
       checks.forEach(function (cb, i) { if (!cb.checked) return; if (S.travel(world, world.chars[i], id)) { moved.push(world.chars[i].name); if (i === world.selected) focusSel = true; } else if (S.mapCount(world, id) >= lim) full++; });
-      msg = (moved.length ? 'Movidos: ' + moved.join(', ') : 'No se movió a nadie.') + (full ? ' · Mapa lleno (máx. ' + lim + ')' : '');
+      msg = (moved.length ? $t('Movidos: {0}', moved.join(', ')) : $t('No se movió a nadie.')) + (full ? ' · ' + $t('Mapa lleno (máx. {0})', lim) : '');
       if (focusSel) G.focus(world.selected);
       G.save(); ov.remove(); render();
     });

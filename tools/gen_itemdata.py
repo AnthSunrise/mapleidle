@@ -11,9 +11,9 @@ def name_of(i):
                 r = f(v)
                 if r: return r
     return f(E)
-TYPE = {'Cp': 'hat', 'Ma': 'top', 'MaPn': 'top', 'Pn': 'bottom', 'So': 'shoes', 'Gv': 'glove', 'Wp': 'weapon', 'WpSi': 'weapon', 'Si': 'sub', 'Sr': 'cape'}
+TYPE = {'Cp': 'hat', 'Ma': 'top', 'MaPn': 'top', 'Pn': 'bottom', 'So': 'shoes', 'Gv': 'glove', 'Wp': 'weapon', 'WpSi': 'weapon', 'Si': 'sub', 'Sr': 'cape', 'Ri': 'ring', 'Ae': 'earring', 'Pe': 'pendant', 'Be': 'belt', 'Af': 'faceacc', 'Ay': 'eyeacc', 'Sh': 'shoulder'}
 JOB = {1: 'warrior', 2: 'mage', 4: 'archer', 8: 'thief', 16: 'pirate'}
-INC = {'incSTR': 'str', 'incDEX': 'dex', 'incINT': 'int', 'incLUK': 'luk', 'incPAD': 'att', 'incMAD': 'matt', 'incPDD': 'def', 'incMDD': 'mdef', 'incMHP': 'mhp', 'incMMP': 'mmp', 'incACC': 'acc', 'incEVA': 'eva', 'incSpeed': 'speed', 'incJump': 'jump'}
+INC = {'incSTR': 'str', 'incDEX': 'dex', 'incINT': 'int', 'incLUK': 'luk', 'incPAD': 'att', 'incMAD': 'matt', 'incPDD': 'def', 'incMDD': 'mdef', 'incMHP': 'mhp', 'incMMP': 'mmp', 'incACC': 'acc', 'incEVA': 'eva', 'incSpeed': 'speed', 'incJump': 'jump', 'bdR': 'boss', 'imdR': 'ied'}
 os.makedirs(os.path.join(game, 'assets/item'), exist_ok=True)
 out = {}
 for d in ids:

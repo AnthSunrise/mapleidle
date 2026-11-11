@@ -2,6 +2,7 @@
  * Los sprites están en assets/ui/ (extraídos con tools/wzimg.py). */
 (function () {
   'use strict';
+  var $t = window.$t || function (x) { return x; };
   var G = window.MAPLE_GAME, S = window.MapleSim, I = window.MapleItems;
   if (!G || !S || !I) return;
   var world = G.world, A = 'assets/ui/', ICON = 'assets/item/';
@@ -64,12 +65,12 @@
     c.addEventListener('contextmenu', function (e) { e.preventDefault(); if (ptype === 'mouse') drop(); });
   }
   var NAMES = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK', att: 'ATT', matt: 'MATT', def: 'DEF', mdef: 'MDEF', mhp: 'HP', mmp: 'MP', acc: 'ACC', eva: 'AVOID', speed: 'Speed', jump: 'Jump' };
-  var SORT = ['att', 'matt', 'str', 'dex', 'int', 'luk', 'def', 'mdef', 'mhp', 'mmp', 'acc', 'eva', 'speed', 'jump'];
+  var SORT = ['str', 'dex', 'int', 'luk', 'mhp', 'mmp', 'att', 'matt', 'boss', 'ied', 'def', 'mdef', 'acc', 'eva', 'speed', 'jump'];   // orden del tooltip: STR DEX INT LUK HP MP ATT MATT Boss IED DEF …
   /* Tooltip de ítem al estilo MapleStory: etiquetas pixeladas reales de UIWindow.img/ToolTip (REQ LEV, clases, categorías) + marco azul oscuro.
      (El marco original está en UIToolTip.img, que no tenemos: se imita con CSS.) */
   var TT = 'assets/ui/tt/', JOBS = ['beginner', 'warrior', 'magician', 'bowman', 'thief', 'pirate'], JOBCLS = { warrior: 'warrior', mage: 'magician', archer: 'bowman', thief: 'thief', pirate: 'pirate' };
-  var ICAT = { 100: 1, 101: 2, 102: 3, 103: 4, 104: 5, 105: 21, 106: 6, 107: 7, 108: 8, 109: 10, 110: 9, 111: 12 };
-  var STATTXT = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK', att: 'WEAPON ATTACK', matt: 'MAGIC ATTACK', def: 'WEAPON DEFENSE', mdef: 'MAGIC DEFENSE', mhp: 'MaxHP', mmp: 'MaxMP', acc: 'ACCURACY', eva: 'AVOIDABILITY', speed: 'SPEED', jump: 'JUMP' };
+  var ICAT = { 100: 1, 101: 2, 102: 3, 103: 4, 104: 5, 105: 21, 106: 6, 107: 7, 108: 8, 109: 10, 110: 9, 111: 12, 112: 'pendant', 113: 'belt', 115: 'shoulder' };
+  var STATTXT = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK', att: 'WEAPON ATTACK', matt: 'MAGIC ATTACK', def: 'WEAPON DEFENSE', mdef: 'MAGIC DEFENSE', mhp: 'MaxHP', mmp: 'MaxMP', boss: 'BOSS DAMAGE', ied: 'IGNORE ENEMY DEF', acc: 'ACCURACY', eva: 'AVOIDABILITY', speed: 'SPEED', jump: 'JUMP' };
   function ttImg(n) { return '<img src="' + TT + n + '.png" draggable="false">'; }
   function ttNum(v, ok) { return String(v).split('').map(function (d) { return ttImg((ok ? 'can_' : 'cant_') + d); }).join(''); }
   function tipOf(id, inst) {
@@ -82,14 +83,15 @@
     var jobs = JOBS.map(function (j) { var ok = !it.cls || JOBCLS[it.cls] === j || (j === 'beginner' && false); return ttImg((ok ? 'can_' : 'can0_') + j); }).join('');
     var pre = Math.floor(+id / 10000), cat = '';
     if (it.type === 'weapon') cat = '<img src="' + TT + 'wc_' + (pre - 100) + '.png" onerror="this.outerHTML=\'<span class=tt-txt>' + (pre === 148 ? 'KNUCKLER' : 'WEAPON') + '</span>\'" draggable="false">';
-    else cat = ttImg('ic_' + (ICAT[pre] || 1));
+    else cat = ttImg('ic_' + (it.overall ? 'overall' : (ICAT[pre] || 1)));
     var tot = I.statsOf(inst || id), lines = SORT.filter(function (k) { return tot[k] || it.stats[k]; }).map(function (k) {
       var d = (tot[k] || 0) - (it.stats[k] || 0);   // lo que sumaron los scrolls
-      return '<div class="tt-line">' + STATTXT[k] + ' : +' + (tot[k] || 0) + (d ? ' (' + (it.stats[k] || 0) + ' <span style="color:' + (d > 0 ? '#7fd0ff' : '#ff8a8a') + '">' + (d > 0 ? '+' : '') + d + '</span>)' : '') + '</div>';
+      var pc = (k === 'boss' || k === 'ied') ? '%' : '';
+      return '<div class="tt-line">' + STATTXT[k] + ' : +' + (tot[k] || 0) + pc + (d ? ' (' + (it.stats[k] || 0) + ' <span style="color:' + (d > 0 ? '#7fd0ff' : '#ff8a8a') + '">' + (d > 0 ? '+' : '') + d + '</span>)' : '') + '</div>';
     }).join('');
     var spd = it.type === 'weapon' && it.speed >= 2 && it.speed <= 8 ? '<div class="tt-line">ATTACK SPEED : ' + ttImg('sp_' + (it.speed - 2)) + '</div>' : '';
     return '<div class="tt"><div class="tt-name">' + I.nameOf(inst || id) + '</div><div class="tt-row">' + ic + '<div class="tt-reqs">' + rq + '</div></div><div class="tt-jobs">' + jobs + '</div><div class="tt-sep"></div>' +
-      '<div class="tt-line">CATEGORY : ' + cat + (it.overall ? ' <span class="tt-txt">(Overall)</span>' : '') + '</div>' + spd + lines + (it.tuc ? '<div class="tt-line">UPGRADES AVAILABLE : ' + I.slotsLeft(inst || id) + '</div>' : '') + (inst && inst.sc && inst.sc.w ? '<div class="tt-line" style="color:#ffe45c">Upgrade count protection active.</div>' : '') + potTip(inst) + '</div>';
+      '<div class="tt-line">CATEGORY : ' + cat + '</div>' + spd + lines + (it.tuc ? '<div class="tt-line">UPGRADES AVAILABLE : ' + I.slotsLeft(inst || id) + '</div>' : '') + (inst && inst.sc && inst.sc.w ? '<div class="tt-line" style="color:#ffe45c">Upgrade count protection active.</div>' : '') + potTip(inst) + '</div>';
   }
 
   // ventana arrastrable: w/h en px del sprite, bg = imagen de fondo
@@ -177,17 +179,17 @@
         if (pick) { var okp = id && pickEligible(inst); c.classList.add(okp ? 'pk-ok' : 'pk-no'); if (okp) c.addEventListener('click', function () { chooseTarget({ where: 'inv', idx: idx }); }); }
         else if (id) {
           itemTouch(c, 'e' + idx, id, function () { var r = I.equipItem(world.inv, world.equip, world.stats.level, idx, world.chars[world.selected].cls, world.chars[world.selected].branch); toast(r.msg); G.save(); isig = ''; hideTip(); IW.refresh(); EW.refresh(true); },
-            function () { toast('Descartado: ' + I.ITEMS[id].name); world.inv.equip[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); }, inst);
+            function () { toast($t('Descartado: {0}', I.ITEMS[id].name)); world.inv.equip[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); }, inst);
         }
       } else {
         var sl = world.inv.use[idx]; c = cellEl(full, x, y, sl && sl.id, sl ? sl.count : 0);
         if (sl) {
           itemTouch(c, 'u' + idx, sl.id, function () {
             var it = I.ITEMS[sl.id], cc = world.chars[world.selected];
-            if (it.heal) { var k2 = it.heal.hp ? 'hp' : 'mp'; cc.potions[k2].id = it.id; toast(it.name + ' asignada a ' + cc.name + ' (' + cc.potions[k2].pct + '% de ' + k2.toUpperCase() + ')'); G.save(); isig = ''; IW.refresh(); }
+            if (it.heal) { var k2 = it.heal.hp ? 'hp' : 'mp'; cc.potions[k2].id = it.id; toast(it.name + ' asignada a ' + cc.name + ' (' + cc.potions[k2].pct + '% de ' + k2.toUpperCase() + ')'); if (window.MAPLE_Q) window.MAPLE_Q.event('potion'); G.save(); isig = ''; IW.refresh(); }
             else if (I.CUBES[it.id] || it.scroll) startPick(it.id);
             else toast(it.name);
-          }, function () { toast('Descartado: ' + I.ITEMS[sl.id].name + ' x' + sl.count); world.inv.use[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
+          }, function () { toast($t('Descartado: {0}', I.ITEMS[sl.id].name + ' x' + sl.count)); world.inv.use[idx] = null; G.save(); isig = ''; hideTip(); IW.refresh(); });
         }
       }
     })(i);
@@ -197,7 +199,7 @@
   /* ---------- Equipment Inventory (E) ---------- */
   var EW = makeWin('equip', '../ui2/equip_bg.png', 232, 348, X0 + 175 * SC + 16, 46);
   // posición (x,y) de cada ranura en la ventana de 232x348 (UIWindow4 Equip; celdas de 40x39, paso 41)
-  var SLOTPOS = { hat: [96, 50], top: [96, 173], bottom: [96, 214], glove: [137, 214], shoes: [96, 255], cape: [178, 214], ring1: [14, 50], ring2: [14, 91], ring3: [14, 132], ring4: [14, 173], earring: [137, 132], weapon: [55, 173], sub: [178, 173] };
+  var SLOTPOS = { hat: [96, 50], top: [96, 173], bottom: [96, 214], glove: [137, 214], shoes: [96, 255], cape: [178, 214], ring1: [14, 50], ring2: [14, 91], ring3: [14, 132], ring4: [14, 173], earring: [137, 132], pendant1: [55, 91], pendant2: [55, 132], belt: [55, 214], faceacc: [96, 91], eyeacc: [96, 132], shoulder: [137, 173], weapon: [55, 173], sub: [178, 173] };
   var esig = '', ename = el('div', 'mw-name'); EW.inn.appendChild(ename);
   EW.refresh = function (force) {
     if (!EW.open) return;
@@ -207,9 +209,9 @@
     I.SLOTS.forEach(function (sl) {
       var p = SLOTPOS[sl], id = I.idOf(world.equip[sl]), c = cellEl(EW.inn, p[0] + 4, p[1] + 4, id, 1, world.equip[sl]);
       if (pick) { var okq = id && pickEligible(world.equip[sl]); c.classList.add(okq ? 'pk-ok' : 'pk-no'); if (okq) c.addEventListener('click', function () { chooseTarget({ where: 'eq', slot: sl }); }); }
-      else if (id) c.addEventListener('click', function () { var r = I.unequipSlot(world.inv, world.equip, sl); toast(r.ok ? 'Desequipado: ' + I.ITEMS[id].name : r.msg); G.save(); esig = ''; isig = ''; hideTip(); EW.refresh(); IW.refresh(); });
+      else if (id) c.addEventListener('click', function () { var r = I.unequipSlot(world.inv, world.equip, sl); toast(r.ok ? $t('Desequipado: {0}', I.ITEMS[id].name) : r.msg); G.save(); esig = ''; isig = ''; hideTip(); EW.refresh(); IW.refresh(); });
     });
-    ename.textContent = ch.name + ' · Lv ' + world.stats.level;
+    ename.textContent = ch.name + ' · ' + $t('Lv {0}', world.stats.level);
   };
   EW.inn.style.overflow = 'visible'; ename.style.cssText = 'position:absolute;left:12px;top:318px;font:bold 11px Arial;color:#2d4565;width:150px;white-space:nowrap';
 
@@ -251,7 +253,7 @@
   var KW = makeWin('skill', '../ui2/skill_bg.png', 174, 299, X0 + 60, 70), ksig = '', klist, kjob, ksp, ktab = -1, ktabs = [];   // ktab: 0 = Beginner, 1..4 = 1er..4to job (-1 = elegir según el personaje)
   (function () {
     ['Beginner', '1er job', '2do job', '3er job', '4to job'].forEach(function (nm, i) {   // pestañas (sprites UIWindow2 Skill/Tab): Beginner, 1er, 2do, 3er y 4to job
-      var tb = el('div'); tb.style.cssText = 'position:absolute;left:' + (10 + i * 31) + 'px;width:30px;cursor:pointer'; tb.title = nm;
+      var tb = el('div'); tb.style.cssText = 'position:absolute;left:' + (10 + i * 31) + 'px;width:30px;cursor:pointer'; tb.title = $t(nm);
       var im = el('img'); im.draggable = false; im.style.cssText = 'display:block;image-rendering:pixelated'; tb.appendChild(im); tb._img = im;
       tb.addEventListener('click', function () { ktab = i; KW.refresh(true); }); KW.inn.appendChild(tb); ktabs.push(tb);
     });
@@ -272,7 +274,7 @@
       } catch (er) { return ''; }
     }
     var BF = window.MapleBuffs && window.MapleBuffs.BUFFS[sk.buff];
-    var desc = sk.desc || (sk.passiveSkill ? 'Skill pasiva: siempre activa.' : sk.buff ? (BF && BF.party ? 'Buff para todo el party del mapa.' : 'Buff propio.') + ' Con Auto se renueva sola.' : sk.teleportSkill ? 'Movimiento rápido; con Auto se usa para seguir al líder y subir plataformas.' : sk.debuff ? 'Debilita a los enemigos cercanos.' : sk.summon ? 'Invoca un aliado que ataca solo.' : 'Ataca a ' + (sk.mobCount > 1 ? 'hasta ' + sk.mobCount + ' enemigos' : 'un enemigo') + ' frente al personaje.');
+    var desc = sk.desc || (sk.passiveSkill ? $t('Skill pasiva: siempre activa.') : sk.buff ? (BF && BF.party ? $t('Buff para todo el party del mapa.') : $t('Buff propio.')) + ' ' + $t('Con Auto se renueva sola.') : sk.teleportSkill ? $t('Movimiento rápido; con Auto se usa para seguir al líder y subir plataformas.') : sk.debuff ? $t('Debilita a los enemigos cercanos.') : sk.summon ? $t('Invoca un aliado que ataca solo.') : (sk.mobCount > 1 ? $t('Ataca hasta {0} enemigos frente al personaje.', sk.mobCount) : $t('Ataca a un enemigo frente al personaje.')));
     var reqs = sk.req ? Object.keys(sk.req).filter(function (k) { return SK.SKILLS[k]; }) : [];
     var reqTxt = reqs.map(function (k) { var ok = (world.skills[k] ? world.skills[k].level : 0) >= sk.req[k]; return '<span style="color:' + (ok ? '#9dff8a' : '#ffa64a') + '">Required Skill: ' + esc(SK.SKILLS[k].name) + ' Lv. ' + sk.req[k] + '</span>'; }).join('<br>');
     var h = '<div style="width:236px"><div style="font:bold 12px Tahoma,Arial;color:#fff;padding-bottom:4px"><span style="color:#7fe3d0">&bull;</span> ' + esc(sk.name) + '</div>' +
@@ -286,15 +288,15 @@
     if (!KW.open) return;
     var SK = window.MapleSkills, s = JSON.stringify([world.selected, world.skills, world.stats.level, world.chars[world.selected].branch, ktab]);
     if (!force && s === ksig) return; ksig = s;
-    klist.innerHTML = ''; var cl = world.chars[world.selected].cls; var chb = world.chars[world.selected].branch, jb = chb && window.MapleJobs && window.MapleJobs.get(chb); kjob.textContent = I.CLASSES[cl].label + (jb ? ' · ' + jb.name : ' · 1st job'); var tabNow = ktab < 0 ? (chb ? 2 : 1) : ktab; ksp.textContent = tabNow >= 1 ? SK.spAvailable(world, tabNow) : 0; ktabs.forEach(function (tb, i) { var on = i === tabNow; tb._img.src = 'assets/ui2/sktab' + i + (on ? '_on' : '_off') + '.png'; tb.style.top = (on ? 27 : 29) + 'px'; });
+    klist.innerHTML = ''; var cl = world.chars[world.selected].cls; var chb = world.chars[world.selected].branch, jb = chb && window.MapleJobs && window.MapleJobs.get(chb); kjob.textContent = I.CLASSES[cl].label + (jb ? ' · ' + jb.name : ' · ' + $t('1st job')); var tabNow = ktab < 0 ? (chb ? 2 : 1) : ktab; ksp.textContent = tabNow >= 1 ? SK.spAvailable(world, tabNow) : 0; ktabs.forEach(function (tb, i) { var on = i === tabNow; tb._img.src = 'assets/ui2/sktab' + i + (on ? '_on' : '_off') + '.png'; tb.style.top = (on ? 27 : 29) + 'px'; });
     var mine = SK.ORDER.filter(function (id) { var q = SK.SKILLS[id]; return (!q.cls || q.cls === cl) && SK.jobOf(q) === tabNow && (SK.jobOf(q) < 2 || (chb && q.branches && q.branches.indexOf(chb) >= 0)); });   // cada pestaña muestra los skills de su job (2do job: solo los de su rama)
-    if (!mine.length) { var ne = el('div', '', tabNow === 0 ? 'Sin skills de Beginner.' : tabNow === 2 && !chb ? 'Avanza de job a Lv30 (botón en Personajes, C) para ver los skills del 2do job.' : tabNow >= 3 ? 'Aún no disponible.' : 'Sin skills en esta pestaña.'); ne.style.cssText = 'font:11px Tahoma,Arial;color:#567;padding:8px'; klist.appendChild(ne); }
+    if (!mine.length) { var ne = el('div', '', tabNow === 0 ? $t('Sin skills de Beginner.') : tabNow === 2 && !chb ? $t('Avanza de job a Lv30 (botón en Personajes, C) para ver los skills del 2do job.') : tabNow >= 3 ? $t('Aún no disponible.') : $t('Sin skills en esta pestaña.')); ne.style.cssText = 'font:11px Tahoma,Arial;color:#567;padding:8px'; klist.appendChild(ne); }
     mine.forEach(function (id, i) {
       var sk = SK.SKILLS[id], st = world.skills[id], lv = st.level, off0 = !window.MapleSim.skillAllowed(world.chars[world.selected], sk), row = el('div'), canUp = SK.canLearn(world, id);
       row.style.cssText = 'position:absolute;left:0;top:' + (i * 35) + 'px;width:140px;height:35px;background:url(assets/ui2/skrow' + (lv && !off0 ? 0 : 1) + '.png)';
       var ic = el('img'); ic.src = sk.icon; ic.draggable = false; ic.style.cssText = 'position:absolute;left:1px;top:2px;width:32px;height:32px;image-rendering:pixelated' + (lv && !off0 ? '' : ';filter:grayscale(1) opacity(.55)'); row.appendChild(ic);
       var nm = el('div', '', sk.name); nm.style.cssText = 'position:absolute;left:39px;top:3px;width:82px;overflow:hidden;text-overflow:ellipsis;font:bold 10px Tahoma,Arial;color:#222;white-space:nowrap'; row.appendChild(nm);
-      var off = !window.MapleSim.skillAllowed(world.chars[world.selected], sk), lvl = el('div', '', 'Lv. ' + lv + '/' + sk.maxLevel); lvl.style.cssText = 'position:absolute;left:39px;top:20px;font:10px Tahoma,Arial;color:#444;white-space:nowrap'; row.appendChild(lvl);
+      var off = !window.MapleSim.skillAllowed(world.chars[world.selected], sk), lvl = el('div', '', $t('Lv. {0}', lv + '/' + sk.maxLevel)); lvl.style.cssText = 'position:absolute;left:39px;top:20px;font:10px Tahoma,Arial;color:#444;white-space:nowrap'; row.appendChild(lvl);
       var up = el('img'); up.src = A + 'spup_' + (canUp ? 'normal' : 'disabled') + '.png'; up.draggable = false; up.style.cssText = 'position:absolute;left:125px;top:4px;image-rendering:pixelated;cursor:' + (canUp ? 'pointer' : 'default'); row.appendChild(up);
       if (canUp) { up.addEventListener('mouseenter', function () { up.src = A + 'spup_mouseOver.png'; }); up.addEventListener('mouseleave', function () { up.src = A + 'spup_normal.png'; });
         up.addEventListener('click', function () { hideTip(); if (SK.learn(world, id)) { G.save(); ksig = ''; KW.refresh(); } }); }
@@ -320,7 +322,7 @@
     var ov = el('div', 'wm-ov'), box = el('div', 'wm-box'); ov.style.zIndex = 80;
     box.appendChild(el('div', 'wm-h', title)); var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = max; inp.value = 1; inp.style.cssText = 'width:100%;box-sizing:border-box;padding:8px;font:15px sans-serif;border-radius:6px;border:1px solid #556;background:#0d1020;color:#fff';
     ['keydown', 'keyup', 'keypress'].forEach(function (ev) { inp.addEventListener(ev, function (e) { e.stopPropagation(); }); });
-    box.appendChild(inp); box.appendChild(el('div', '', 'Máximo: ' + max)); var act = el('div', 'wm-act'), no = el('button', 'wm-go', 'Cancelar'), ok = el('button', 'wm-go', 'Aceptar');
+    box.appendChild(inp); box.appendChild(el('div', '', $t('Máximo: {0}', max))); var act = el('div', 'wm-act'), no = el('button', 'wm-go', $t('Cancelar')), ok = el('button', 'wm-go', $t('Aceptar'));
     no.addEventListener('click', function () { ov.remove(); }); ok.addEventListener('click', function () { var n = Math.max(1, Math.min(max, inp.value | 0)); ov.remove(); cb(n); });
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') ok.click(); });
     act.appendChild(no); act.appendChild(ok); box.appendChild(act); ov.appendChild(box); document.body.appendChild(ov); setTimeout(function () { inp.focus(); inp.select(); }, 30);
@@ -333,7 +335,7 @@
       var b = el('div'); b.style.cssText = 'position:absolute;left:' + (241 + i * 43) + 'px;width:42px;cursor:pointer'; b.dataset.t = t[0]; b.dataset.k = t[1]; H.appendChild(b);
       b.addEventListener('click', function () { htab = t[0]; hsel = null; hsig = ''; HW.refresh(); });
     });
-    var cap = el('div', '', 'Tienda'); hcap = cap; cap.style.cssText = 'position:absolute;left:14px;top:14px;width:100px;font:bold 12px Tahoma,Arial;color:#345'; H.appendChild(cap);
+    var cap = el('div', '', $t('Tienda')); hcap = cap; cap.style.cssText = 'position:absolute;left:14px;top:14px;width:100px;font:bold 12px Tahoma,Arial;color:#345'; H.appendChild(cap);
     var nt = el('div', '', ''); hnote = nt; nt.style.cssText = 'position:absolute;left:14px;top:32px;width:98px;font:10px Tahoma,Arial;color:#456;line-height:1.35'; H.appendChild(nt);
     hL = el('div'); hL.style.cssText = 'position:absolute;left:11px;top:115px;width:215px;height:210px;overflow-y:scroll;scrollbar-width:thin'; H.appendChild(hL);
     hR = el('div'); hR.style.cssText = 'position:absolute;left:242px;top:115px;width:215px;height:210px;overflow-y:scroll;scrollbar-width:thin'; H.appendChild(hR);
@@ -342,11 +344,11 @@
       v.addEventListener('scroll', function () { clearTimeout(tm); tm = setTimeout(snap, 90); });
       v.addEventListener('wheel', function (e) { e.preventDefault(); e.stopPropagation(); v.scrollTop = Math.round(v.scrollTop / 42) * 42 + (e.deltaY > 0 ? 42 : -42); }, { passive: false });
     });
-    var sa = el('div', '', 'Vender todo'); sa.style.cssText = 'position:absolute;left:350px;top:26px;width:104px;font:10px Tahoma,Arial;color:#345;text-align:right;cursor:pointer;text-decoration:underline'; sa.title = 'Vende todo lo de esta pestaña (clic derecho en un objeto = vender al instante)'; sa.addEventListener('click', sellAllTab); H.appendChild(sa);
+    var sa = el('div', '', $t('Vender todo')); sa.style.cssText = 'position:absolute;left:350px;top:26px;width:104px;font:10px Tahoma,Arial;color:#345;text-align:right;cursor:pointer;text-decoration:underline'; sa.title = $t('Vende todo lo de esta pestaña (clic derecho en un objeto = vender al instante)'); sa.addEventListener('click', sellAllTab); H.appendChild(sa);
     hmeso = el('div'); hmeso.style.cssText = 'position:absolute;left:373px;top:65px;width:78px;height:13px;text-align:right;font:bold 11px Tahoma,Arial;line-height:13px;color:#222'; H.appendChild(hmeso);
     hbuy = bt('btbuy', 158, 45, function () { doBuy(); }); hsell = bt('btsell', 390, 45, function () { doSell(); });
     bt('btexit', 158, 25, function () { HW.set(false); });
-    var back = el('div', '', '◀ Categorías'); back.style.cssText = 'position:absolute;left:14px;top:72px;font:10px Tahoma,Arial;color:#345;cursor:pointer;text-decoration:underline'; back.addEventListener('click', function () { HW.set(false); SM.set(true); }); H.appendChild(back);
+    var back = el('div', '', $t('◀ Categorías')); back.style.cssText = 'position:absolute;left:14px;top:72px;font:10px Tahoma,Arial;color:#345;cursor:pointer;text-decoration:underline'; back.addEventListener('click', function () { HW.set(false); SM.set(true); }); H.appendChild(back);
   })();
 
   /* ---------- Usar cubos y scrolls ----------
@@ -378,13 +380,13 @@
     if (I.countItem(world.inv, itemId) < 1) return;
     var prev = pick; pick = { id: itemId, kind: I.CUBES[itemId] ? 'cube' : 'scroll' };
     var any = world.inv.equip.some(function (x) { return pickEligible(x); }) || I.SLOTS.some(function (sl) { return pickEligible(world.equip[sl]); });
-    if (!any) { pick = prev; toast('No tienes ningún equipo al que se pueda aplicar ' + it.name + '.', 3000); return; }
+    if (!any) { pick = prev; toast($t('No tienes ningún equipo al que se pueda aplicar {0}.', it.name), 3000); return; }
     if (pickBar) pickBar.remove(); else addEventListener('keydown', onPickKey, true);
-    pickBar = el('div'); pickBar.id = 'pick-bar'; pickBar.innerHTML = 'Elige el equipo para usar <b>' + it.name + '</b>'; var cb = el('button', '', 'Cancelar'); cb.onclick = cancelPick; pickBar.appendChild(cb); document.body.appendChild(pickBar);
+    pickBar = el('div'); pickBar.id = 'pick-bar'; pickBar.innerHTML = $t('Elige el equipo para usar <b>{0}</b>', it.name); var cb = el('button', '', $t('Cancelar')); cb.onclick = cancelPick; pickBar.appendChild(cb); document.body.appendChild(pickBar);
     tab = 'equip'; IW.set(true); refreshAll();
   }
   function confirmBox(html, onYes) {   // cuadro Sí / No
-    var ov = el('div'); ov.id = 'cube-ov'; ov.innerHTML = '<div class="b"><div class="m">' + html + '</div><div class="row"><button class="y">Sí</button><button class="x n">No</button></div></div>'; document.body.appendChild(ov);
+    var ov = el('div'); ov.id = 'cube-ov'; ov.innerHTML = '<div class="b"><div class="m">' + html + '</div><div class="row"><button class="y">' + $t('Sí') + '</button><button class="x n">' + $t('No') + '</button></div></div>'; document.body.appendChild(ov);
     function close() { ov.remove(); removeEventListener('keydown', onk, true); }
     function onk(e) { if (e.key === 'Escape') { e.stopPropagation(); e.stopImmediatePropagation(); close(); } else if (e.key === 'Enter') { e.stopPropagation(); ov.querySelector('.y').click(); } }
     addEventListener('keydown', onk, true);
@@ -393,7 +395,7 @@
   }
   function chooseTarget(t) {
     if (!pick) return; var x = getT(t), id = pick.id, kind = pick.kind, it = I.ITEMS[id]; if (!x || !pickEligible(x)) return;
-    confirmBox('¿Quieres usar <b>' + it.name + '</b> en <b>' + I.nameOf(x) + '</b>?', function (ov) {
+    confirmBox($t('¿Quieres usar <b>{0}</b> en <b>{1}</b>?', it.name, I.nameOf(x)), function (ov) {
       if (!I.removeItem(world.inv, id, 1)) { ov.remove(); cancelPick(); return; }
       if (kind === 'cube') { ov.remove(); cancelPick(); openCubeUI(id, t); return; }
       var r = I.scrollUse(x, id), col, msg;
@@ -450,7 +452,7 @@
         tBefore.innerHTML = busy ? '' : potHtml(getT(t)); tAfter.innerHTML = busy || !pend ? '' : potHtml(pend);
         btns.before.on = !busy; btns.after.on = !busy && !!pend; btns.before.i.style.display = btns.after.i.style.display = '';
       } else { tRes.innerHTML = busy ? '' : potHtml(getT(t)); btns.ok.on = !busy; }
-      btns.more.on = !busy && n > 0 && I.cubeCheck(cubeId, getT(t)); btns.more.h.title = 'Cubos restantes: ' + n;
+      btns.more.on = !busy && n > 0 && I.cubeCheck(cubeId, getT(t)); btns.more.h.title = $t('Cubos restantes: {0}', n);
       for (var k in btns) btns[k].paint();
     }
     function place(kind, i) { var o = M[kind][i]; fx.style.left = o[0] + 'px'; fx.style.top = o[1] + 'px'; fx.src = P + kind + i + '.png'; }
@@ -466,7 +468,7 @@
       anim = { k: res.up ? 'g' : 'u', f: 0 }; place(anim.k, 0); paint(); refreshAll();
     }
     function finish(takeNew) {
-      if (takeNew && pend) { putT(t, pend); toast('Potencial nuevo aplicado.'); } else if (pend) toast('Conservaste el potencial actual.');
+      if (takeNew && pend) { putT(t, pend); toast($t('Potencial nuevo aplicado.')); } else if (pend) toast($t('Conservaste el potencial actual.'));
       pend = null; G.save(); close();
     }
     function close() { if (closed) return; closed = true; clearInterval(tm); ov.remove(); removeEventListener('keydown', onk, true); removeEventListener('resize', fit); G.save(); refreshAll(); }
@@ -486,53 +488,53 @@
     if (extra) { var nn = el('span', 'mw-n'); nn.style.left = '1px'; nn.style.bottom = '1px'; String(extra).replace(/\D/g, '').split('').forEach(function (d) { var di = el('img'); di.src = 'assets/ui2/no/' + d + '.png'; di.draggable = false; nn.appendChild(di); }); r.appendChild(nn); }
     r.addEventListener('click', onclick); if (onright) r.addEventListener('contextmenu', function (e) { e.preventDefault(); hideTip(); onright(); }); r.addEventListener('mouseenter', function (e) { showTip(e, tipOf(id, inst)); }); r.addEventListener('mousemove', function (e) { showTip(e, tipOf(id, inst)); }); r.addEventListener('mouseleave', hideTip); parent.appendChild(r);
   }
-  function priceTxt(e) { return e.currency ? e.price + ' × ' + I.ITEMS[e.currency].name : fm(e.price) + ' mesos'; }
+  function priceTxt(e) { return e.currency ? e.price + ' × ' + I.ITEMS[e.currency].name : fm(e.price) + ' ' + $t('mesos'); }
   function doBuy() {
-    if (hsel === null) return toast('Elige un objeto de la lista de la izquierda');
+    if (hsel === null) return toast($t('Elige un objeto de la lista de la izquierda'));
     var e = I.SHOP[hsel], it = I.ITEMS[e.id], have = e.currency ? I.countItem(world.inv, e.currency) : world.mesos, max = Math.min(999, Math.floor(have / e.price));
-    if (max < 1) return toast(e.currency ? 'No tienes suficientes ' + I.ITEMS[e.currency].name : 'No tienes suficientes mesos');
-    askQty('Comprar ' + it.name + ' (' + priceTxt(e) + ' c/u)', max, function (n) {
-      if (!I.canAdd(world.inv, e.id, n)) return toast('Inventario lleno');
+    if (max < 1) return toast(e.currency ? $t('No tienes suficientes {0}', I.ITEMS[e.currency].name) : $t('No tienes suficientes mesos'));
+    askQty($t('Comprar {0} ({1} c/u)', it.name, priceTxt(e)), max, function (n) {
+      if (!I.canAdd(world.inv, e.id, n)) return toast($t('Inventario lleno'));
       if (e.currency) I.removeItem(world.inv, e.currency, e.price * n); else world.mesos -= e.price * n;
-      I.addItem(world.inv, e.id, n); toast('Comprado: ' + it.name + ' ×' + n); G.save(); hsig = ''; HW.refresh(); IW.refresh();
+      I.addItem(world.inv, e.id, n); toast($t('Comprado: {0}', it.name + ' ×' + n)); if (window.MAPLE_Q) window.MAPLE_Q.event('shop'); G.save(); hsig = ''; HW.refresh(); IW.refresh();
     });
   }
   function doSell() {
-    if (!hrow) return toast('Elige un objeto de tu inventario (lista de la derecha)');
+    if (!hrow) return toast($t('Elige un objeto de tu inventario (lista de la derecha)'));
     var r = hrow, it = I.ITEMS[r.id], cnt = r.kind === 'equip' ? 1 : I.countItem(world.inv, r.id);
     function fin(n) {
       if (r.kind === 'equip') world.inv.equip[r.idx] = null; else I.removeItem(world.inv, r.id, n);
-      world.mesos += it.sell * n; toast('Vendido: ' + it.name + (n > 1 ? ' ×' + n : '') + '  +' + fm(it.sell * n) + ' mesos'); hrow = null; G.save(); hsig = ''; HW.refresh(); IW.refresh();
+      world.mesos += it.sell * n; toast($t('Vendido: {0}  +{1} mesos', it.name + (n > 1 ? ' ×' + n : ''), fm(it.sell * n))); hrow = null; G.save(); hsig = ''; HW.refresh(); IW.refresh();
     }
-    if (cnt > 1) askQty('Vender ' + it.name + ' (' + it.sell + ' mesos c/u)', cnt, fin); else fin(1);
+    if (cnt > 1) askQty($t('Vender {0} ({1} mesos c/u)', it.name, it.sell), cnt, fin); else fin(1);
   }
   // venta rápida (clic derecho): equipo = 1 pieza; objeto USE = toda la pila
   function quickSell(r) {
     var it = I.ITEMS[r.id], n = r.kind === 'equip' ? 1 : I.countItem(world.inv, r.id); if (!n) return;
     if (r.kind === 'equip') world.inv.equip[r.idx] = null; else I.removeItem(world.inv, r.id, n);
-    world.mesos += (it.sell || 0) * n; toast('Vendido: ' + it.name + (n > 1 ? ' ×' + n : '') + '  +' + fm((it.sell || 0) * n) + ' mesos'); if (hrow && hrow.id === r.id) hrow = null; G.save(); hsig = ''; HW.refresh(); IW.refresh();
+    world.mesos += (it.sell || 0) * n; toast($t('Vendido: {0}  +{1} mesos', it.name + (n > 1 ? ' ×' + n : ''), fm((it.sell || 0) * n))); if (hrow && hrow.id === r.id) hrow = null; G.save(); hsig = ''; HW.refresh(); IW.refresh();
   }
   function sellAllTab() {
     var items = [], total = 0;
     if (htab === 'equip') world.inv.equip.forEach(function (inst, idx) { if (inst) items.push({ id: I.idOf(inst), inst: inst, idx: idx, kind: 'equip' }); });
     else world.inv.use.forEach(function (sl, idx) { if (sl && sl.id !== 'red_potion' && sl.id !== 'blue_potion' && !items.some(function (x) { return x.id === sl.id; })) items.push({ id: sl.id, idx: idx, kind: 'use' }); });
-    if (!items.length) return toast(htab === 'equip' ? 'No hay equipo para vender' : 'No hay objetos para vender (las pociones no se venden en bloque)');
+    if (!items.length) return toast(htab === 'equip' ? $t('No hay equipo para vender') : $t('No hay objetos para vender (las pociones no se venden en bloque)'));
     items.forEach(function (r) { total += (I.ITEMS[r.id].sell || 0) * (r.kind === 'equip' ? 1 : I.countItem(world.inv, r.id)); });
-    if (!confirm('¿Vender TODO ' + (htab === 'equip' ? 'el equipo del inventario' : 'lo de la pestaña USE (menos pociones)') + ' por ' + fm(total) + ' mesos?')) return;
+    if (!confirm(htab === 'equip' ? $t('¿Vender TODO el equipo del inventario por {0} mesos?', fm(total)) : $t('¿Vender TODO lo de la pestaña USE (menos pociones) por {0} mesos?', fm(total)))) return;
     items.forEach(function (r) { if (r.kind === 'equip') world.inv.equip[r.idx] = null; else I.removeItem(world.inv, r.id, I.countItem(world.inv, r.id)); });
-    world.mesos += total; hrow = null; toast('Vendido todo: +' + fm(total) + ' mesos'); G.save(); hsig = ''; HW.refresh(); IW.refresh();
+    world.mesos += total; hrow = null; toast($t('Vendido todo: +{0} mesos', fm(total))); G.save(); hsig = ''; HW.refresh(); IW.refresh();
   }
   var SHOPCATS = {
-    consumable: { name: 'Consumibles', note: 'Pociones y otros consumibles, a cambio de mesos.', icon: function () { return ICON + ((I.ITEMS.red_potion || {}).icon || 'red_potion') + '.png'; } },
-    scroll: { name: 'Scrolls', note: 'Canjea Scroll Pieces por scrolls de equipo.', icon: function () { var k = Object.keys(I.ITEMS).filter(function (i) { return I.ITEMS[i].scroll; })[0]; return k && ICON + (I.ITEMS[k].icon || k) + '.png'; } },
-    enhance: { name: 'Enhance', note: 'Cubos para reiniciar el potencial del equipo.', icon: function () { return ICON + ((I.ITEMS.cube_miracle || {}).icon || 'cube_miracle') + '.png'; } }
+    consumable: { name: $t('Consumibles'), note: $t('Pociones y otros consumibles, a cambio de mesos.'), icon: function () { return ICON + ((I.ITEMS.red_potion || {}).icon || 'red_potion') + '.png'; } },
+    scroll: { name: $t('Scrolls'), note: $t('Canjea Scroll Pieces por scrolls de equipo.'), icon: function () { var k = Object.keys(I.ITEMS).filter(function (i) { return I.ITEMS[i].scroll; })[0]; return k && ICON + (I.ITEMS[k].icon || k) + '.png'; } },
+    enhance: { name: $t('Enhance'), note: $t('Cubos para reiniciar el potencial del equipo.'), icon: function () { return ICON + ((I.ITEMS.cube_miracle || {}).icon || 'cube_miracle') + '.png'; } }
   };
   function shopCat(e) { return e.cat || (I.ITEMS[e.id] && I.ITEMS[e.id].scroll ? 'scroll' : /^cube_/.test(e.id) ? 'enhance' : 'consumable'); }
   // menú de categorías de la tienda (T): 3 tarjetas; fáciles de reemplazar por botones con tu arte
   var SM = { id: 'shopmenu', open: false, t: 0 };
   (function () {
     var o = el('div'); o.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:none;z-index:70;background:rgba(14,18,34,.96);border:1px solid #556;border-radius:10px;padding:14px 16px 16px;box-shadow:0 8px 30px #000a;font-family:Tahoma,Arial,sans-serif';
-    var hd = el('div', '', 'Tienda'); hd.style.cssText = 'color:#fff;font:bold 14px Tahoma,Arial;margin-bottom:10px;display:flex;justify-content:space-between'; var xx = el('span', '', '✕'); xx.style.cssText = 'cursor:pointer;color:#aab'; xx.addEventListener('click', function () { SM.set(false); }); hd.appendChild(xx); o.appendChild(hd);
+    var hd = el('div', '', $t('Tienda')); hd.style.cssText = 'color:#fff;font:bold 14px Tahoma,Arial;margin-bottom:10px;display:flex;justify-content:space-between'; var xx = el('span', '', '✕'); xx.style.cssText = 'cursor:pointer;color:#aab'; xx.addEventListener('click', function () { SM.set(false); }); hd.appendChild(xx); o.appendChild(hd);
     var row = el('div'); row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;justify-content:center'; o.appendChild(row);
     Object.keys(SHOPCATS).forEach(function (k) {
       var c = el('div'); c.style.cssText = 'width:118px;padding:12px 8px;border:1px solid #445;border-radius:8px;background:#1b2140;text-align:center;cursor:pointer;color:#fff'; c.dataset.cat = k;
@@ -557,7 +559,7 @@
     var list = [];
     if (htab === 'equip') world.inv.equip.forEach(function (inst, idx) { if (inst) list.push({ id: I.idOf(inst), inst: inst, idx: idx, kind: 'equip' }); });
     else world.inv.use.forEach(function (sl, idx) { if (sl && !list.some(function (x) { return x.id === sl.id; })) list.push({ id: sl.id, idx: idx, kind: 'use' }); });
-    list.forEach(function (r, i) { rowEl(hR, i, r.id, (I.ITEMS[r.id].sell || 0) + ' mesos', function () { hrow = r; hsig = ''; HW.refresh(); }, hrow && hrow.id === r.id && hrow.idx === r.idx, r.kind === 'use' ? '×' + I.countItem(world.inv, r.id) : '', function () { quickSell(r); }, r.inst); });
+    list.forEach(function (r, i) { rowEl(hR, i, r.id, (I.ITEMS[r.id].sell || 0) + ' ' + $t('mesos'), function () { hrow = r; hsig = ''; HW.refresh(); }, hrow && hrow.id === r.id && hrow.idx === r.idx, r.kind === 'use' ? '×' + I.countItem(world.inv, r.id) : '', function () { quickSell(r); }, r.inst); });
     var h1 = el('div'); h1.style.cssText = 'height:' + Math.max(210, shown.length * 42) + 'px;width:1px'; hL.appendChild(h1);
     var h2 = el('div'); h2.style.cssText = 'height:' + Math.max(210, list.length * 42) + 'px;width:1px'; hR.appendChild(h2);
     hL.scrollTop = kl; hR.scrollTop = kr;
@@ -586,7 +588,7 @@
     '#mc-set{position:fixed;top:64px;right:10px;z-index:12;display:none;min-width:240px;padding:12px 14px;background:#f4f1e6;border:2px solid #6b7da8;border-radius:6px;font:12px Tahoma,Arial;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.6)}#mc-set.on{display:block}' +
     '#mc-set h4{margin:0 0 8px;font-size:13px}#mc-set label{display:block;margin:6px 0;cursor:pointer}#mc-set button{margin-top:8px;padding:6px 12px;font:bold 12px Tahoma,Arial;border:1px solid #333;border-radius:4px;color:#fff;background:#c0392b;cursor:pointer}';
   document.head.appendChild(mcss);
-  var hb = el('button'); hb.id = 'mc-hb'; hb.title = 'Menú'; hb.innerHTML = '<span></span><span></span><span></span>'; document.body.appendChild(hb);
+  var hb = el('button'); hb.id = 'mc-hb'; hb.title = $t('Menú'); hb.innerHTML = '<span></span><span></span><span></span>'; document.body.appendChild(hb);
   var menu = el('div'); menu.id = 'mc-menu'; document.body.appendChild(menu);
   var setp = el('div'); setp.id = 'mc-set'; document.body.appendChild(setp);
   function menuOpen(v) { menu.classList.toggle('on', v); hb.classList.toggle('on', v); if (v) setp.classList.remove('on'); }
@@ -594,13 +596,13 @@
   function viaOld(re) { return function () { var b = oldBtn(re); if (b) b.click(); }; }
   var ENTRIES = [['Personajes', 'char', viaOld(/Personajes/), 'C'], ['Inventario', 'items', function () { IW.toggle(); }, 'I'], ['Tienda', 'shop', function () { shopToggle(); }, 'T'],
     ['Equip', 'equips', function () { EW.toggle(); }, 'E'], ['Stat', 'stats', function () { SW.toggle(); }, 'S'], ['Skill', 'skills', function () { KW.toggle(); }, 'K'],
-    ['Mapa', 'maps', viaOld(/Mapa/), 'M'], ['Pociones', 'pots', viaOld(/Pociones/), 'P'], ['Ajustes', 'settings', function () { setOpen(true); }, '']];
+    ['Mapa', 'maps', viaOld(/Mapa/), 'M'], ['Misiones', 'quests', viaOld(/Misiones/), 'Q'], ['Pociones', 'pots', viaOld(/Pociones/), 'P'], ['Ajustes', 'settings', function () { setOpen(true); }, '']];
   ENTRIES.forEach(function (en) {
-    var b = el('button'); b.title = en[0]; var im = el('img'); im.src = 'assets/ui/menu/' + en[1] + '.png'; b.appendChild(im); b.appendChild(el('span', '', en[0])); if (en[3]) b.appendChild(el('i', '', en[3]));
+    var b = el('button'); b.title = $t(en[0]); b.dataset.k = en[0]; var im = el('img'); im.src = 'assets/ui/menu/' + en[1] + '.png'; b.appendChild(im); b.appendChild(el('span', '', $t(en[0]))); if (en[3]) b.appendChild(el('i', '', en[3]));
     b.addEventListener('click', function (e) { e.stopPropagation(); en[2](); if (en[0] !== 'Ajustes') menuOpen(false); }); menu.appendChild(b);
   });
   hb.addEventListener('click', function (e) { e.stopPropagation(); setp.classList.remove('on'); menuOpen(!menu.classList.contains('on')); });
-  document.addEventListener('pointerdown', function (e) { if (!menu.contains(e.target) && !hb.contains(e.target)) menuOpen(false); if (!setp.contains(e.target) && !hb.contains(e.target) && !menu.contains(e.target)) setp.classList.remove('on'); }, true);
+  document.addEventListener('pointerdown', function (e) { if (e.target.closest && e.target.closest('.tu-card')) return; if (!menu.contains(e.target) && !hb.contains(e.target)) menuOpen(false); if (!setp.contains(e.target) && !hb.contains(e.target) && !menu.contains(e.target)) setp.classList.remove('on'); }, true);
   // Esc: cierra primero el menú/ajustes y luego, de uno en uno, la ventana abierta más reciente (Mapa, Pociones, Personajes, Equip, Inventario, Stat, Skill, Tienda)
   // cierra lo último que se abrió: primero menú/ajustes, luego la ventana o panel más reciente; devuelve false si no había nada
   function closeTop() {
@@ -621,24 +623,27 @@
   function anyOpen() { var P = window.MAPLE_PANELS || {}; return [IW, EW, SW, KW, HW, SM].some(function (W) { return W.open; }) || Object.keys(P).some(function (k) { return P[k].isOpen(); }); }
   setInterval(function () { cx.classList.toggle('on', anyOpen()); }, 150);
   // Ajustes: zonas de farmeo y reinicio de partida
-  setp.appendChild(el('h4', '', 'Ajustes'));
-  var zl = el('label'), zc = document.createElement('input'); zc.type = 'checkbox'; zc.checked = G.showZones(); zc.addEventListener('change', function () { G.showZones(zc.checked); }); zl.appendChild(zc); zl.appendChild(document.createTextNode(' Mostrar zonas de farmeo')); setp.appendChild(zl);
-  var rb = el('button', '', 'Reiniciar partida…'); rb.addEventListener('click', function () { setp.classList.remove('on'); askReset(); }); setp.appendChild(rb);
+  setp.appendChild(el('h4', '', $t('Ajustes')));
+  var zl = el('label'), zc = document.createElement('input'); zc.type = 'checkbox'; zc.checked = G.showZones(); zc.addEventListener('change', function () { G.showZones(zc.checked); }); zl.appendChild(zc); zl.appendChild(document.createTextNode(' ' + $t('Mostrar zonas de farmeo'))); setp.appendChild(zl);
+  var ll = el('label'), ls2 = document.createElement('select'); ll.appendChild(document.createTextNode($t('Idioma') + ': '));
+  [['es', 'Español'], ['en', 'English']].forEach(function (p) { var o = document.createElement('option'); o.value = p[0]; o.textContent = p[1]; ls2.appendChild(o); });
+  ls2.value = window.MAPLE_I18N ? window.MAPLE_I18N.lang() : 'es'; ls2.addEventListener('change', function () { if (window.MAPLE_I18N) window.MAPLE_I18N.set(ls2.value); }); ll.appendChild(ls2); setp.appendChild(ll);
+  var rb = el('button', '', $t('Reiniciar partida…')); rb.addEventListener('click', function () { setp.classList.remove('on'); askReset(); }); setp.appendChild(rb);
   // Reiniciar partida: tecla | (a la izquierda del 1) -> ventana de confirmación
   var resetOpen = null;
   function askReset() {
     if (resetOpen) return;
     var ov = el('div'); ov.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:2147482000;display:flex;align-items:center;justify-content:center';
     var bx = el('div'); bx.style.cssText = 'background:#f4f1e6;border:2px solid #6b7da8;border-radius:6px;padding:16px 20px;font:12px Tahoma,Arial;color:#222;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.6);min-width:240px';
-    var t = el('div', '', '¿Quieres reiniciar la partida?'); t.style.cssText = 'font-weight:bold;font-size:13px;margin-bottom:6px';
-    var d = el('div', '', 'Se borrarán personajes, inventario y mesos.'); d.style.cssText = 'color:#555;margin-bottom:12px';
+    var ttl = el('div', '', $t('¿Quieres reiniciar la partida?')); ttl.style.cssText = 'font-weight:bold;font-size:13px;margin-bottom:6px';
+    var d = el('div', '', $t('Se borrarán personajes, inventario y mesos.')); d.style.cssText = 'color:#555;margin-bottom:12px';
     function btn(txt, bg) { var b = el('button', '', txt); b.style.cssText = 'margin:0 6px;padding:5px 22px;font:bold 12px Tahoma,Arial;border:1px solid #333;border-radius:4px;cursor:pointer;color:#fff;background:' + bg; return b; }
-    var yes = btn('Sí', '#c0392b'), no = btn('No', '#4a6fa5');
+    var yes = btn($t('Sí'), '#c0392b'), no = btn($t('No'), '#4a6fa5');
     function close() { resetOpen = null; ov.remove(); removeEventListener('keydown', onKey, true); }
     function onKey(e) { if (e.code === 'Escape' || e.code === 'KeyN') { e.preventDefault(); e.stopPropagation(); close(); } else if (e.code === 'Enter' || e.code === 'KeyY') { e.preventDefault(); G.reset(); } }
     yes.addEventListener('click', function () { G.reset(); }); no.addEventListener('click', close);
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-    bx.appendChild(t); bx.appendChild(d); bx.appendChild(yes); bx.appendChild(no); ov.appendChild(bx); document.body.appendChild(ov);
+    bx.appendChild(ttl); bx.appendChild(d); bx.appendChild(yes); bx.appendChild(no); ov.appendChild(bx); document.body.appendChild(ov);
     addEventListener('keydown', onKey, true); resetOpen = ov; no.focus();
   }
   addEventListener('keydown', function (e) {
@@ -646,5 +651,26 @@
     if (e.code === 'Backquote' || e.key === '|') { e.preventDefault(); askReset(); return; }
     if (e.code === 'KeyI') IW.toggle(); else if (e.code === 'KeyE') EW.toggle(); else if (e.code === 'KeyS') SW.toggle(); else if (e.code === 'KeyK') KW.toggle(); else if (e.code === 'KeyT') shopToggle();
   });
+  // API para el tutorial: abrir/cerrar ventanas y localizar elementos del menú sin depender de los botones ocultos
+  var PANEL_BTN = { chars: /Personajes/, pots: /Pociones/, map: /Mapa/ };
+  window.MAPLE_UI = {
+    closeAll: function () {
+      menuOpen(false); setp.classList.remove('on');
+      [IW, EW, SW, KW, HW, SM].forEach(function (W) { if (W.open) W.set(false); });
+      var P = window.MAPLE_PANELS || {}; Object.keys(P).forEach(function (k) { if (P[k].isOpen()) P[k].close(); });
+    },
+    show: function (name) {   // 'menu' | 'chars' | 'pots' | 'map' | 'skills' | 'stats' | 'items' | 'shop'
+      var P = window.MAPLE_PANELS || {}, W = { skills: KW, stats: SW, items: IW }[name];
+      if (name === 'menu') menuOpen(true);
+      else if (W) W.set(true);
+      else if (name === 'shop') SM.set(true);
+      else if (PANEL_BTN[name] && !(P[name] && P[name].isOpen())) { var b = oldBtn(PANEL_BTN[name]); if (b) b.click(); }
+    },
+    entry: function (title) { return [].slice.call(menu.children).filter(function (b) { return b.dataset.k === title; })[0] || null; },
+    shopMenu: function () { return SM.root; }
+  };
+  var tb = el('button', '', 'Tutorial'); tb.style.background = '#4a6fa5'; tb.style.marginRight = '8px';
+  tb.addEventListener('click', function () { setp.classList.remove('on'); if (window.MAPLE_TUTORIAL) window.MAPLE_TUTORIAL.start(); });
+  setp.insertBefore(tb, rb);
   setInterval(function () { IW.refresh(); EW.refresh(); SW.refresh(); KW.refresh(); HW.refresh(); }, 300);
 })();

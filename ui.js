@@ -1,6 +1,7 @@
 /* Ventana de inventario / equipo / stats (HTML encima del canvas). Tecla E o botón. */
 (function () {
   'use strict';
+  var $t = window.$t || function (x) { return x; };
   var G = window.MAPLE_GAME, I = window.MapleItems;
   if (!G || !I) return;
   var world = G.world, tab = 'equip', isOpen = false, sig = '', info = '';
@@ -87,22 +88,22 @@
 
   function potionsPanel() {
     var ch = world.chars[world.selected], box = el('div', 'mi-pots');
-    box.appendChild(el('div', 'mi-h', 'Pociones automáticas'));
+    box.appendChild(el('div', 'mi-h', $t('Pociones automáticas')));
     ['hp', 'mp'].forEach(function (k) {
       var slot = ch.potions[k], it = I.ITEMS[slot.id], row = el('div', 'mi-pot'), have = 0;
       if (it) world.inv.use.forEach(function (s) { if (s && s.id === it.id) have += s.count; });
       var ic = cell(it, 0, k.toUpperCase());
-      if (it) ic.addEventListener('click', function () { slot.id = null; info = 'Poción de ' + k.toUpperCase() + ' quitada.'; G.save(); sig = ''; render(); });
+      if (it) ic.addEventListener('click', function () { slot.id = null; info = $t('Poción de {0} quitada.', k.toUpperCase()); G.save(); sig = ''; render(); });
       row.appendChild(ic);
-      row.appendChild(el('span', '', it ? it.name + ' x' + have + ' · usar al' : 'Sin poción: haz clic en una en la pestaña USE'));
+      row.appendChild(el('span', '', it ? it.name + ' x' + have + ' · ' + $t('usar al') : $t('Sin poción: haz clic en una en la pestaña USE')));
       if (it) {
         var num = document.createElement('input'), rng = document.createElement('input');
         num.type = 'number'; num.min = 1; num.max = 99; num.value = slot.pct; num.className = 'mi-pn';
         rng.type = 'range'; rng.min = 1; rng.max = 99; rng.value = slot.pct;
         ['keydown', 'keyup', 'keypress'].forEach(function (ev) { num.addEventListener(ev, function (e) { e.stopPropagation(); }); });
-        num.addEventListener('input', function () { if (num.value === '') return; var v = Math.max(1, Math.min(99, num.value | 0)); slot.pct = v; rng.value = v; G.save(); });
+        num.addEventListener('input', function () { if (num.value === '') return; var v = Math.max(1, Math.min(99, num.value | 0)); slot.pct = v; rng.value = v; if (window.MAPLE_Q) window.MAPLE_Q.event('potion'); G.save(); });
         num.addEventListener('change', function () { num.value = slot.pct; });
-        rng.addEventListener('input', function () { slot.pct = rng.value | 0; num.value = slot.pct; G.save(); });
+        rng.addEventListener('input', function () { slot.pct = rng.value | 0; num.value = slot.pct; if (window.MAPLE_Q) window.MAPLE_Q.event('potion'); G.save(); });
         row.appendChild(num); row.appendChild(el('span', '', '%')); row.appendChild(rng);
       }
       box.appendChild(row);

@@ -1,6 +1,7 @@
 /* Maple Idle - Etapa 1: lógica del juego (sin DOM, se puede probar en Node) */
 (function (root) {
   'use strict';
+  function $t(x) { var a = arguments, f = root.$t; if (f) return f.apply(null, a); return String(x).replace(/\{(\d+)\}/g, function (m, i) { return a[+i + 1] !== undefined ? a[+i + 1] : m; }); }   // idioma (i18n.js); sin DOM/idioma devuelve el español
 
   var C = {
     WALK: 140, JUMP_V: -600, G: 1800, DROP_MAX: 350, DROP_PRONE: 0.22, DROP_HOP: -170, DASH_WIND: 0.12, DASH_DUR: 0.24, CLIMB: 90,
@@ -95,7 +96,7 @@
       s.exp -= expToNext(s.level); s.level++;
       s.maxHp = maxHpOf(ch); s.hp = s.maxHp; s.maxMp = maxMpOf(ch); s.mp = s.maxMp;   // al subir de nivel se recupera HP y MP
       if (ch.mapId === w.mapId && ch.player) beFx(w, 'LevelUp', { x: ch.player.x, y: ch.player.y, follow: ch.player });
-      w.texts.push({ x: ch.player.x, y: ch.player.y - 90, txt: 'LEVEL UP!  Lv. ' + s.level, c: '#ffe45c', big: true, life: 1.8, t: 0 });
+      w.texts.push({ x: ch.player.x, y: ch.player.y - 90, txt: $t('LEVEL UP!  Lv. {0}', s.level), c: '#ffe45c', big: true, life: 1.8, t: 0 });
     }
     if (s.level >= MAX_LEVEL) s.exp = 0;
   }
@@ -127,7 +128,7 @@
     mates.forEach(function (c) { gainExp(w, xp * 0.5 * pf(c), c); });
     var meso = (r.meso[0] + Math.floor(Math.random() * (r.meso[1] - r.meso[0] + 1))) * (isElite ? EL.mesoMul : 1);
     w.mesos += meso; w.mesoTot = (w.mesoTot || 0) + meso;
-    w.texts.push({ x: m.x, y: m.y - 62, txt: '+' + Math.round(xpK) + ' EXP   +' + meso + ' mesos', c: isElite || isBoss ? '#ffd23f' : '#8fdcff', t: 0, big: isElite || isBoss });
+    w.texts.push({ x: m.x, y: m.y - 62, txt: $t('+{0} EXP   +{1} mesos', Math.round(xpK), meso), c: isElite || isBoss ? '#ffd23f' : '#8fdcff', t: 0, big: isElite || isBoss });
     for (var di = 0; di < (isBoss ? (m.boss.drops || 10) : isElite ? EL.drops : 1); di++) dropLoot(w, m);
     var MI0 = root.MapleItems;   // cubos de potencial: Super Miracle de élites y jefes, Black Cube de jefes
     if (MI0 && w.inv) [['cube_super', isElite ? 0.08 : isBoss ? 0.30 : 0], ['cube_black', isBoss ? 0.10 : 0]].forEach(function (cd, ci) {
@@ -304,10 +305,10 @@
   // avance de job (Lv30): elige rama y recibe su arma provisional (si está definida)
   // ¿se puede avanzar? Si la rama entrega armas, el inventario EQUIP necesita hueco para todas (si no, se cancela y el personaje sigue pudiendo avanzar)
   function advanceCheck(w, c, id) {
-    var J = root.MapleJobs, MI = root.MapleItems; if (!J || !J.canAdvance(c) || !J.valid(c.cls, id)) return { ok: false, msg: 'No puede avanzar a esa rama' };
+    var J = root.MapleJobs, MI = root.MapleItems; if (!J || !J.canAdvance(c) || !J.valid(c.cls, id)) return { ok: false, msg: $t('No puede avanzar a esa rama') };
     var need = J.gifts(J.get(id)).filter(function (g) { return MI && MI.ITEMS && MI.ITEMS[g]; }).length;
     var free = w.inv.equip.filter(function (x) { return !x; }).length;
-    if (free < need) return { ok: false, full: true, need: need, free: free, msg: 'Inventario EQUIP lleno: libera ' + (need - free) + ' hueco' + (need - free > 1 ? 's' : '') + ' y vuelve a avanzar de job' };
+    if (free < need) return { ok: false, full: true, need: need, free: free, msg: need - free > 1 ? $t('Inventario EQUIP lleno: libera {0} huecos y vuelve a avanzar de job', need - free) : $t('Inventario EQUIP lleno: libera 1 hueco y vuelve a avanzar de job') };
     return { ok: true, need: need, free: free };
   }
   function advanceJob(w, c, id) {
@@ -369,7 +370,7 @@
     buildZone(w, 'henesys', data, { homeFh: 137, spawnX: 300 });
     Object.keys(reg).forEach(function (id) { if (id !== 'henesys') buildZone(w, id, reg[id].data, reg[id]); });
     w.chars = []; w.selected = 0; w.mesos = 0;
-    addCharacter(w, { name: 'Guerrero', cls: 'warrior' });
+    addCharacter(w, { name: $t('Guerrero'), cls: 'warrior' });
     bind(w, w.chars[0]);
     return w;
   }
@@ -640,7 +641,7 @@
 
        if (successRob) {
            applyBuff(w, owner, 'stealBuff', { duration: 60, mods: { att: 30 } });
-           w.texts.push({ x: owner.player.x, y: owner.player.y - 80, txt: '¡ROBO EXITOSO!', c: '#ffdd00', t: 0 });
+           w.texts.push({ x: owner.player.x, y: owner.player.y - 80, txt: $t('¡ROBO EXITOSO!'), c: '#ffdd00', t: 0 });
        }
     }
   }
@@ -1143,7 +1144,7 @@
     var p = w.player, s = w.stats, loss = Math.min(s.exp, 0.05 * expToNext(s.level));
     s.hp = 0; s.exp -= loss; w.cur.deadT = 10; w.cur.buffs = [];
     p.state = 'dead'; p.atk = null; p.ladder = null; p.vx = p.vy = 0; p.moving = false;
-    w.texts.push({ x: p.x, y: p.y - 80, txt: 'Has muerto  -' + Math.round(loss * 10) / 10 + ' EXP', c: '#ff9a9a', t: 0, life: 2, big: true });
+    w.texts.push({ x: p.x, y: p.y - 80, txt: $t('Has muerto  -{0} EXP', Math.round(loss * 10) / 10), c: '#ff9a9a', t: 0, life: 2, big: true });
   }
   function stepDead(w, dt) {
     var c = w.cur, p = w.player, s = w.stats;
@@ -1582,10 +1583,10 @@
             if (m.elite && !m.eliteNext) { m.elite = false; m.maxHp = m.baseHp; }   // el élite derrotado vuelve a ser un enemigo normal
             if (m.eliteNext) {   // aparece el élite
               var EL2 = eliteCfg(w); m.eliteNext = false; m.elite = true; m.baseHp = m.baseHp || m.maxHp; m.maxHp = Math.round(m.baseHp * EL2.hpMul);
-              w.texts.push({ x: m.spawnX, y: m.y - 110, txt: '¡Un enemigo ÉLITE ha aparecido!', c: '#ff5c5c', t: 0, life: 3, big: true });
+              w.texts.push({ x: m.spawnX, y: m.y - 110, txt: $t('¡Un enemigo ÉLITE ha aparecido!'), c: '#ff5c5c', t: 0, life: 3, big: true });
             }
           }
-          if (m.t <= 0 && m.boss) w.texts.push({ x: m.spawnX, y: m.y - 130, txt: '¡Ha aparecido ' + (m.kind.charAt(0).toUpperCase() + m.kind.slice(1)) + '!', c: '#ffd23f', t: 0, life: 3, big: true });
+          if (m.t <= 0 && m.boss) w.texts.push({ x: m.spawnX, y: m.y - 130, txt: $t('¡Ha aparecido {0}!', m.kind.charAt(0).toUpperCase() + m.kind.slice(1)), c: '#ffd23f', t: 0, life: 3, big: true });
           if (m.t <= 0) { m.state = 'move'; m.hp = m.maxHp; m.x = m.spawnX; m.t = 1 + Math.random() * 2; m.dir = Math.random() < 0.5 ? -1 : 1; }
           break;
         case 'hit': m.t -= dt; if (m.t <= 0) { m.state = 'move'; m.t = 1 + Math.random() * 2; } break;

@@ -1,6 +1,7 @@
 /* Maple Idle - Etapa 1: dibujo, cámara y controles */
 (function () {
   'use strict';
+  var $t = window.$t || function (x) { return x; }, LOC = window.MAPLE_I18N && window.MAPLE_I18N.lang() === 'en' ? 'en-US' : 'es';
   var S = window.MapleSim, DATA = window.MAPDATA;
   var cv = document.getElementById('c'), ctx = cv.getContext('2d');
   var ASSETS = 'assets/';
@@ -39,6 +40,7 @@
       world.inv = window.MapleItems.sanitize(sv.inv, null).inv;
       S.selectChar(world, Math.min(world.chars.length - 1, Math.max(0, sv.selected | 0)));
       if (sv.leader !== undefined && sv.leader !== null && world.chars[sv.leader | 0]) world.leader = world.chars[sv.leader | 0];
+      world.quests = sv.quests || null;   // quests.js lo normaliza
       hasSave = true;
     }
   } catch (e) {}
@@ -48,7 +50,7 @@
   function save() {
     if (noSave) return;
     try {
-      localStorage.setItem('maple_save', JSON.stringify({ v: 2, savedAt: lastRun, farm: world.farm || null, leader: world.leader ? world.chars.indexOf(world.leader) : null, mesos: world.mesos, inv: world.inv, selected: world.selected,
+      localStorage.setItem('maple_save', JSON.stringify({ v: 2, savedAt: lastRun, quests: world.quests || null, farm: world.farm || null, leader: world.leader ? world.chars.indexOf(world.leader) : null, mesos: world.mesos, inv: world.inv, selected: world.selected,
         chars: world.chars.map(function (c) { return { name: c.name, cls: c.cls, mapId: c.mapId, branch: c.branch || null, level: c.stats.level, exp: c.stats.exp, equip: c.equip, skills: c.skills, potions: c.potions, look: c.look || null, zones: c.zones || {}, helpBoss: !!c.helpBoss, farmExp: Math.round((c.farmExp || 0) * 1e4) / 1e4, farmN: c.farmN || 0 }; }) }));
     } catch (e) {}
   }
@@ -101,6 +103,15 @@
     var mids = Object.keys(MAPS), bgl = await loadMany(mids.map(function (m) { return ASSETS + MAPS[m].img; }));
     mids.forEach(function (m, i) { A.bgs[m] = bgl[i]; });
     A.bg = A.bgs.henesys;
+    A.backs = {};   // fondos por mapa (backdata_*.js): capas con parallax, repetición y animación
+    var BK = window.MAPLE_BACKS || {};
+    await Promise.all(Object.keys(BK).map(async function (mid) {
+      var L = BK[mid]; if (!L) return;
+      A.backs[mid] = await Promise.all(L.map(async function (l) {
+        var imgs = await loadMany(l.frames.map(function (f) { return ASSETS + f.src; }));
+        return { l: l, imgs: imgs };
+      }));
+    }));
     A.star = [await loadImg(ASSETS + 'skill/star_0.png'), await loadImg(ASSETS + 'skill/star_1.png')];
     A.skill = {};   // efectos de las skills de área: A.skill[id] = { effect: [...], hit: [...] }
     var SKS = window.MapleSkills.SKILLS;
@@ -284,7 +295,7 @@
     ctx.fillStyle = '#9aa0ad'; ctx.strokeStyle = '#3c4150'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(p.x - 13, p.y); ctx.lineTo(p.x - 13, p.y - 26); ctx.arc(p.x, p.y - 26, 13, Math.PI, 0); ctx.lineTo(p.x + 13, p.y); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#3c4150'; ctx.fillRect(p.x - 2, p.y - 32, 4, 16); ctx.fillRect(p.x - 7, p.y - 27, 14, 4);
-    var t = 'Revive en ' + Math.ceil(c.deadT) + ' s';
+    var t = $t('Revive en {0} s', Math.ceil(c.deadT));
     ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText(t, p.x, p.y - 50); ctx.fillStyle = '#ff9a9a'; ctx.fillText(t, p.x, p.y - 50);
   }
   // Personaje por capas (layers.js): acción WZ + fotograma según el estado; devuelve null si aún cargan las imágenes
@@ -467,7 +478,7 @@
       var ek = m.elite ? esc : 1, bw = 32 * (m.boss ? 3 : m.elite ? 1.8 : 1), by = y - (set.move && set.move[0] ? set.move[0].height : 32) * ek - 8;
       mobBar(m.x, by, m.boss ? 150 : m.elite ? 90 : 50, m.hp / m.maxHp);
       if (m.boss) { ctx.save(); ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; var bn = m.kind.toUpperCase() + ' (JEFE)'; ctx.strokeText(bn, m.x, by - 4); ctx.fillStyle = '#ffd23f'; ctx.fillText(bn, m.x, by - 4); ctx.restore(); }
-      if (m.elite) { ctx.save(); ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('ÉLITE', m.x, by - 4); ctx.fillStyle = '#ff6b6b'; ctx.fillText('ÉLITE', m.x, by - 4); ctx.restore(); }
+      if (m.elite) { ctx.save(); ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText($t('ÉLITE'), m.x, by - 4); ctx.fillStyle = '#ff6b6b'; ctx.fillText($t('ÉLITE'), m.x, by - 4); ctx.restore(); }
     }
   }
 
@@ -511,7 +522,7 @@
   var zdraw = null, showZones = true, ZCOL = ['#ffe45c', '#5cf0ff', '#ff7ad9', '#8dff6a', '#ffa14d', '#b08cff'];
   function toWorld(e) { var r = cv.getBoundingClientRect(), sx = (e.clientX - r.left) * (cv.width / r.width), sy = (e.clientY - r.top) * (cv.height / r.height); return { x: (sx - cv.width / 2) / zoom + cam.x, y: (sy - cv.height / 2) / zoom + cam.y }; }
   // mientras se dibuja la zona se oculta toda la interfaz (clase zone-draw, ver mui.js) y queda un botón para cancelar (en móvil no hay Esc)
-  var zcBtn = document.createElement('button'); zcBtn.textContent = 'Cancelar zona'; zcBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2147482600;display:none;padding:12px 16px;font:bold 15px Arial;color:#fff;background:#7a2430;border:2px solid #cfd8ee;border-radius:5px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.6)'; document.body.appendChild(zcBtn);
+  var zcBtn = document.createElement('button'); zcBtn.textContent = $t('Cancelar zona'); zcBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2147482600;display:none;padding:12px 16px;font:bold 15px Arial;color:#fff;background:#7a2430;border:2px solid #cfd8ee;border-radius:5px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.6)'; document.body.appendChild(zcBtn);
   zcBtn.addEventListener('click', function (e) { e.stopPropagation(); window.MAPLE_GAME.cancelZone(); });
   window.MAPLE_GAME.startZone = function (i) { S.selectChar(world, i); zdraw = { ci: i, a: null, b: null, msg: '' }; cv.style.cursor = 'crosshair'; document.body.classList.add('zone-draw'); zcBtn.style.display = 'block'; };
   window.MAPLE_GAME.clearZone = function (i) { var c = world.chars[i]; S.setZone(c, c.mapId, null); save(); };
@@ -537,7 +548,7 @@
     ctx.restore();
   }
   function drawZoneBanner() {
-    if (!zdraw) return; var c = world.chars[zdraw.ci], t = cv.width < 700 ? (zdraw.msg || 'Zona de ' + c.name + ': arrastra un cuadro') : 'Zona de ' + c.name + ': arrastra un cuadro sobre el mapa (Esc o botón cancelan)' + (zdraw.msg ? '  —  ' + zdraw.msg : '');
+    if (!zdraw) return; var c = world.chars[zdraw.ci], t = cv.width < 700 ? (zdraw.msg || $t('Zona de {0}: arrastra un cuadro', c.name)) : $t('Zona de {0}: arrastra un cuadro sobre el mapa (Esc o botón cancelan)', c.name) + (zdraw.msg ? '  —  ' + zdraw.msg : '');
     ctx.save(); ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; var tw = ctx.measureText(t).width + 30; ctx.fillStyle = 'rgba(10,14,30,.85)'; ctx.fillRect(cv.width / 2 - tw / 2, 70, tw, 30);
     ctx.fillStyle = '#ffe45c'; ctx.fillText(t, cv.width / 2, 91); ctx.restore();
   }
@@ -568,7 +579,7 @@
   function zoneUp(e) {
     if (!zdraw || !zdraw.a || zdraw.id !== e.pointerId) return; zdraw.b = toWorld(e); var c = world.chars[zdraw.ci];
     if (S.setZone(c, c.mapId, { x1: zdraw.a.x, y1: zdraw.a.y, x2: zdraw.b.x, y2: zdraw.b.y })) { save(); window.MAPLE_GAME.cancelZone(); if (window.MAPLE_GAME.onZone) window.MAPLE_GAME.onZone(); }
-    else { zdraw.a = zdraw.b = null; zdraw.msg = 'muy pequeño, prueba otra vez'; }
+    else { zdraw.a = zdraw.b = null; zdraw.msg = $t('muy pequeño, prueba otra vez'); }
   }
   cv.addEventListener('pointerup', zoneUp);
   cv.addEventListener('pointermove', function (e) {
@@ -633,16 +644,45 @@
     if (zdraw.cy < r.top + M) dy = -v; else if (zdraw.cy > r.bottom - M) dy = v;
     if (dx || dy) { cam.x += dx; cam.y += dy; updateCam(false); zdraw.b = toWorld({ clientX: zdraw.cx, clientY: zdraw.cy }); }
   }
+  // Fondos de mapa (como MapleStory): posición = x + (rx+100)*cam/100; type 1/3/4/6 repiten en X, 2/3/5/7 en Y, 4-7 se desplazan solos; capas con ani cambian de frame
+  function drawBack(front) {
+    var L = A.backs && A.backs[world.mapId]; if (!L) return;
+    var vw = cv.width / zoom, vh = cv.height / zoom, vl = cam.x - vw / 2, vt = cam.y - vh / 2, vr = vl + vw, vb = vt + vh, now = performance.now();
+    L.forEach(function (e) {
+      var l = e.l; if ((l.front ? 1 : 0) !== front) return;
+      var fi = 0, fr = l.frames;
+      if (fr.length > 1) { var tot = 0, k; fr.forEach(function (f) { tot += f.delay || 100; }); var tt = now % tot; for (k = 0; k < fr.length; k++) { tt -= fr[k].delay || 100; if (tt < 0) break; } fi = Math.min(k, fr.length - 1); }
+      var img = e.imgs[fi], f = fr[fi]; if (!img) return;
+      var ty = l.type, htile = ty === 1 || ty === 3 || ty === 4 || ty === 6, vtile = ty === 2 || ty === 3 || ty === 5 || ty === 7;
+      var sx = (ty === 4 || ty === 6) ? l.rx * 3.75 * now / 1000 : 0, sy = (ty === 5 || ty === 7) ? l.ry * 3.75 * now / 1000 : 0;
+      var cxs = l.cx > 0 ? l.cx : f.w, cys = l.cy > 0 ? l.cy : f.h;
+      var px = l.x + (l.rx + 100) * cam.x / 100 + sx - (l.f ? f.w - f.ox : f.ox), py = l.y + (l.ry + 100) * cam.y / 100 + sy - f.oy;
+      var x0 = px, y0 = py;
+      if (htile) x0 = px + Math.floor((vl - px) / cxs) * cxs;
+      if (vtile) y0 = py + Math.floor((vt - py) / cys) * cys;
+      ctx.save(); if (l.a < 255) ctx.globalAlpha = l.a / 255;
+      for (var yy = y0; ; yy += cys) {
+        for (var xx = x0; ; xx += cxs) {
+          if (l.f) { ctx.save(); ctx.translate(xx + f.w, yy); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0); ctx.restore(); } else ctx.drawImage(img, xx, yy);
+          if (!htile || xx + cxs > vr) break;
+        }
+        if (!vtile || yy + cys > vb) break;
+      }
+      ctx.restore();
+    });
+  }
   function render() {
     zonePan();
     var vw = cv.width / zoom, vh = cv.height / zoom;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.setTransform(zoom, 0, 0, zoom, Math.round(-(cam.x - vw / 2) * zoom), Math.round(-(cam.y - vh / 2) * zoom));
+    drawBack(0);
     if (A.bg) ctx.drawImage(A.bg, -off.x, -off.y);
     drawZones();
     world.mobs.forEach(drawMob);
     drawPlayer();
     drawSkillFx();
+    drawBack(1);
     ctx.textAlign = 'center'; ctx.lineWidth = 3;
     world.texts.forEach(function (t) {
       if (t.num && drawNum(t)) return;   // números de daño con los sprites de MapleStory (si faltan, cae al texto)
@@ -686,7 +726,7 @@
     if (debug && e.code === 'KeyB') copyText(dbgText(dbgPlayer()));
     if (debug && e.code === 'KeyN' && mouse.in) copyText(dbgText(dbgCursor()));
     if (/^Digit[1-9]$/.test(e.code)) { var vis = window.MAPLE_GAME.visible(), vi = +e.code.slice(5) - 1; if (vi < vis.length) { S.selectChar(world, vis[vi]); save(); } }
-    if (e.code === 'KeyR' && e.shiftKey) { world.chars = []; world.leader = null; S.addCharacter(world, { name: 'Guerrero', cls: 'warrior' }); S.selectChar(world, 0); world.mesos = 0; world.inv = window.MapleItems.newInventory(); save(); }  // Shift+R: reiniciar progreso
+    if (e.code === 'KeyR' && e.shiftKey) { world.chars = []; world.leader = null; S.addCharacter(world, { name: $t('Guerrero'), cls: 'warrior' }); S.selectChar(world, 0); world.mesos = 0; world.inv = window.MapleItems.newInventory(); save(); }  // Shift+R: reiniciar progreso
     if (e.code === 'KeyF') speed = speed === 1 ? 4 : 1;
     if (debug) {
       var st = e.shiftKey ? 10 : 1, ch = true;
@@ -713,7 +753,7 @@
   // barra de vida de enemigos (borde blanco + negro, vacío rojo oscuro, lleno verde) — 8 px de alto
   function mobBar(cx, y, w, f) {
     var x = Math.round(cx - w / 2), yy = Math.round(y); f = Math.max(0, Math.min(1, f));
-    ctx.fillStyle = '#fff'; ctx.fillRect(x, yy, w, 8); ctx.fillStyle = '#222222'; ctx.fillRect(x + 1, yy + 1, w - 2, 6);
+    ctx.fillStyle = '#fff'; ctx.fillRect(x, yy, w, 8); ctx.fillStyle = '#150000'; ctx.fillRect(x + 1, yy + 1, w - 2, 6);
     var iw = w - 4, gw = f > 0 ? Math.max(1, Math.round(iw * f)) : 0, cols = ['#46060c', '#56060a', '#530805', '#360206'], gc = ['#32d838', '#11f718', '#2edb1d', '#1a8a14'];
     for (var i = 0; i < 4; i++) { ctx.fillStyle = cols[i]; ctx.fillRect(x + 2, yy + 2 + i, iw, 1); if (gw) { ctx.fillStyle = gc[i]; ctx.fillRect(x + 2, yy + 2 + i, gw, 1); } }
   }
@@ -728,12 +768,12 @@
     if (!r || (!r.chars.length && !r.mesos && !r.items.length)) return;
     var MI = window.MapleItems, st = document.getElementById('off-css');
     if (!st) { st = document.createElement('style'); st.id = 'off-css'; st.textContent = '#off-ov{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif}#off-ov .b{box-sizing:border-box;width:min(380px,calc(100vw - 20px));max-height:calc(100vh - 20px);overflow:auto;background:#10172c;border:1px solid #ffd23f;border-radius:10px;padding:16px;color:#e8ecf5;box-shadow:0 8px 30px #000a}#off-ov h3{margin:0 0 4px;color:#ffe45c;font-size:17px}#off-ov .s{font-size:12px;color:#9fb0d0;margin-bottom:10px}#off-ov .r{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #ffffff14;font-size:13px}#off-ov .r b{color:#8fdcff;font-weight:600;white-space:nowrap}#off-ov button{margin-top:12px;width:100%;padding:9px;border-radius:7px;border:1px solid #ffd23f;background:#26304f;color:#ffe45c;font-size:14px;cursor:pointer}'; document.head.appendChild(st); }
-    var ov = document.createElement('div'); ov.id = 'off-ov'; var h = '<div class="b"><h3>¡Bienvenido de vuelta!</h3><div class="s">Ausente ' + fmtT(r.absent) + (r.absent > 14400 ? ' (tope 4 h)' : '') + ' → equivale a ' + fmtT(r.eff) + ' de farmeo activo (25%)</div>';
-    r.chars.forEach(function (c) { h += '<div class="r"><span>' + c.name.replace(/[<>&]/g, '') + '</span><b>+' + c.exp.toLocaleString('es') + ' EXP' + (c.l1 > c.l0 ? ' · Lv ' + c.l0 + '→' + c.l1 : '') + '</b></div>'; });
-    if (r.mesos) h += '<div class="r"><span>Mesos</span><b>+' + r.mesos.toLocaleString('es') + '</b></div>';
+    var ov = document.createElement('div'); ov.id = 'off-ov'; var h = '<div class="b"><h3>' + $t('¡Bienvenido de vuelta!') + '</h3><div class="s">' + $t('Ausente {0}', fmtT(r.absent)) + (r.absent > 14400 ? ' ' + $t('(tope 4 h)') : '') + ' → ' + $t('equivale a {0} de farmeo activo (25%)', fmtT(r.eff)) + '</div>';
+    r.chars.forEach(function (c) { h += '<div class="r"><span>' + c.name.replace(/[<>&]/g, '') + '</span><b>+' + c.exp.toLocaleString(LOC) + ' EXP' + (c.l1 > c.l0 ? ' · Lv ' + c.l0 + '→' + c.l1 : '') + '</b></div>'; });
+    if (r.mesos) h += '<div class="r"><span>' + $t('Mesos') + '</span><b>+' + r.mesos.toLocaleString(LOC) + '</b></div>';
     r.items.forEach(function (i) { var it = MI && MI.ITEMS[i.id]; h += '<div class="r"><span>' + (it ? it.name : i.id) + '</span><b>x' + i.n + '</b></div>'; });
-    if (r.lost) h += '<div class="r"><span style="color:#ff8a8a">Inventario lleno</span><b style="color:#ff8a8a">' + r.lost + ' perdidos</b></div>';
-    ov.innerHTML = h + '<button>Aceptar</button></div>'; document.body.appendChild(ov);
+    if (r.lost) h += '<div class="r"><span style="color:#ff8a8a">' + $t('Inventario lleno') + '</span><b style="color:#ff8a8a">' + $t('{0} perdidos', r.lost) + '</b></div>';
+    ov.innerHTML = h + '<button>' + $t('Aceptar') + '</button></div>'; document.body.appendChild(ov);
     var close = function () { if (ov.parentNode) ov.parentNode.removeChild(ov); removeEventListener('keydown', onk, true); }, onk = function (e) { if (e.key === 'Escape' || e.key === 'Enter') { e.stopPropagation(); close(); } };
     ov.querySelector('button').onclick = close; ov.addEventListener('click', function (e) { if (e.target === ov) close(); }); addEventListener('keydown', onk, true);
   }
