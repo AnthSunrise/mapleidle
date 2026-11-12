@@ -25,8 +25,12 @@
     },
     // Agregamos el ID 2230100 para el Octopus
     // Field bosses: un solo punto de aparición fijo por mapa (x, fh = coordenadas del mapa; respawn en segundos de juego). expMul/hpMul/meso se ajustan en mobRewards del jefe.
-    fieldBosses: { mushroom: [{ id: '6130101', kind: 'mushmom', x: 97, fh: 124, respawn: 900, drops: 10 }] },
-    mobTypes: { '6130101': 'mushmom', '9010028': 'snail_blue', '9010029': 'snail_red', '9010032': 'snail_blue', '2220100': 'blue_mushroom', '2220110': 'blue_mushroom', '5150003': 'golem', '3230101': 'wraith', '5130103': 'swamp', '1120100': 'octopus', '1210102': 'orange_mushroom', '0210100': 'pig', '1210100': 'slime', '2230102': 'wild_boar', '2230112': 'wild_boar'},
+    fieldBosses: {
+	  mushroom: [{ id: '6130101', kind: 'mushmom', x: 97, fh: 124, respawn: 900, drops: 10 }],
+	  garden:   [{ id: '8220000', kind: 'eliza', x: 672, fh: 176, respawn: 900, drops: 10 }],
+	  cloud:    [{ id: '9300039', kind: 'papa_pixie', x: -136, fh: 178, respawn: 900, drops: 10 }],
+	},
+    mobTypes: { '9300039': 'papa_pixie', '5120000': 'luster_pixie', '5120003': 'grupin', '8220000': 'eliza', '6130101': 'mushmom', '9010028': 'snail_blue', '9010029': 'snail_red', '9010032': 'snail_blue', '2220100': 'blue_mushroom', '2220110': 'blue_mushroom', '5150003': 'golem', '3230101': 'wraith', '5130103': 'swamp', '1120100': 'octopus', '1210102': 'orange_mushroom', '0210100': 'pig', '1210100': 'slime', '2230102': 'wild_boar', '2230112': 'wild_boar'},
     expMul: 1.4,
     // por mob puedes añadir hpMul (multiplica su vida) y expMul (multiplica su EXP); 1 por defecto. Ej.: swamp: { ..., hpMul: 2, expMul: 2 }
     mobRewards: {
@@ -41,7 +45,11 @@
       pig: { exp: 20, meso: [10, 21], touch: 25, hp: 150, level: 12 },
       slime: { exp: 12, meso: [10, 21], touch: 25, hp: 80, level: 7 },
 	  mushmom: { exp: 280, meso: [600, 1200], touch: 123, hp: 2500, level: 18, hpMul: 4, expMul: 3 },   // field boss
-	  wild_boar: { exp: 267, meso: [82, 165], touch: 346, hp: 8000, level: 55, hpMul: 2.0}
+	  wild_boar: { exp: 267, meso: [82, 165], touch: 220, hp: 8000, level: 55, hpMul: 2.0},
+	  grupin: { exp: 382, meso: [105, 210], touch: 383, hp: 22000, level: 71, hpMul: 2.0},
+	  eliza: { exp: 12100, meso: [2240, 4500], touch: 678, hp: 750000, level: 75, hpMul: 4, expMul: 3 }, //field boss
+	  luster_pixie: { exp: 458, meso: [111, 222], touch: 455, hp: 28000, level: 74, hpMul: 2.0},
+	  papa_pixie: { exp: 14500, meso: [2240, 4500], touch: 780, hp: 850000, level: 79, hpMul: 4, expMul: 3 } //field boss
     }
   };
 
@@ -1064,20 +1072,36 @@
          }
       }
       
-      w.fx.push({ kind: 'hit', id: sk.id, life: sk.hit.length * sk.hitDelay / 1000, x: m.x, y: m.y - 18, t: 0 });
+      var vsHit = root.MapleSkills.view(sk, w.stats.level, (function () {
+        var MI = root.MapleItems; if (!MI || !w.cur.equip || !w.cur.equip.weapon) return 'sword';
+        var id = MI.idOf ? MI.idOf(w.cur.equip.weapon) : w.cur.equip.weapon, p = String(id).slice(0, 3);
+        return (p === '132' || p === '131') ? 'mace' : 'sword';
+      })());
+      if (vsHit && vsHit.hit && vsHit.hit.length) {
+        w.fx.push({ kind: 'hit', id: vsHit.id, life: vsHit.hit.length * vsHit.hitDelay / 1000, x: m.x, y: m.y - 18, t: 0 });
+      }
+      if (sk.stunProp && Math.random() * 100 < sk.stunProp(atk.level)) m.stun = { t: sk.stunTime(atk.level), id: sk.id };
 	        if (sk.stunProp && Math.random() * 100 < sk.stunProp(atk.level)) m.stun = { t: sk.stunTime(atk.level), id: sk.id };
       if (m.hp <= 0) { m.state = 'dying'; m.t = 0; w.kills++; reward(w, m); w.killsByNode[m.node.i] = (w.killsByNode[m.node.i] || 0) + 1; }
       else { 
         m.state = 'hit'; m.t = 0.3; 
-        var pushDist = sk.pushTarget ? 150 : 6; 
-        m.x = clamp(m.x + p.dir * pushDist, m.node.minX + 10, m.node.maxX - 10); 
+        if (sk.pullTarget) {   // Combo Fury: atrae al enemigo hacia el lanzador (animación suave)
+          m.knock = { t: 0, dur: 0.25, from: m.x, to: clamp(p.x + p.dir * 30, m.node.minX + 10, m.node.maxX - 10) };
+        } else {
+          var pushDist = sk.pushTarget ? 150 : 6; 
+          m.x = clamp(m.x + p.dir * pushDist, m.node.minX + 10, m.node.maxX - 10); 
+        }
       }
     });
 	// NUEVO: Movimiento del lanzador (Corkscrew Blow dash)
     if (sk.casterMove && sk.pushDist) {
        p.x = clamp(p.x + p.dir * (sk.pushDist * 0.7), p.node.minX + 10, p.node.maxX - 10);
     }
-	    if (tg.length) tryGrenade(w, tg[0].m);
+	if (tg.length) tryGrenade(w, tg[0].m);
+	if (sk.hitGap && tg.length && sk.hit && sk.hit.length && sk.hitDelay) {
+      // Para habilidades con golpes separados en el tiempo (como Brandish)
+      w.fx.push({ kind: 'delayedHit', x: p.x, y: p.y, dir: p.dir, t: 0, life: sk.hitGap + 0.5, delay: sk.hitGap, targets: tg.slice(), owner: w.cur, sk: sk, lv: atk.level });
+    }
 	tryStealHit(w, tg, w.cur);
     triggerSoulArrow(w); // <-- SE AGREGÓ AQUÍ (para skills de daño instantáneo)
   }
@@ -1157,7 +1181,26 @@
     w.texts.push({ x: p.x, y: p.y - 80, txt: 'Reviviste', c: '#9dff8a', t: 0, life: 1.2 });
   }
   function stepFx(w, dt) {
-    w.fx.forEach(function (f) { f.t += dt; });
+    w.fx.forEach(function (f) { 
+      f.t += dt;
+      if (f.kind === 'delayedHit' && f.t >= f.delay && !f.done) {
+        f.done = true;
+        if (!f.sk || !f.sk.hit || !f.sk.hit.length || !f.targets) return;
+        bind(w, f.owner); var st = cstats(w);
+        f.targets.forEach(function (c) {
+          var m = c.m; if (!alive(m)) return;
+          var base = st.min + Math.floor(Math.random() * (st.max - st.min + 1));
+          var dmg = Math.max(1, Math.round(base * f.sk.damage(f.lv) / 100));
+          var cr = rollCrit(w, f.owner, dmg, m); dmg = cr[0];
+          if (dmg <= 0) return;
+          m.hp -= dmg;
+          w.texts.push({ x: m.x, y: m.y - 40, txt: String(dmg), c: '#ffb347', t: 0, num: cr[1] ? 'cri' : 'red' });
+          w.fx.push({ kind: 'hit', id: f.sk.id, life: f.sk.hit.length * f.sk.hitDelay / 1000, x: m.x, y: m.y - 18, t: 0 });
+          if (m.hp <= 0) { m.state = 'dying'; m.t = 0; w.kills++; reward(w, m); w.killsByNode[m.node.i] = (w.killsByNode[m.node.i] || 0) + 1; }
+          else { m.state = 'hit'; m.t = 0.3; }
+        });
+      }
+    });
     stepIgnite(w);
     w.fx = w.fx.filter(function (f) { return f.t < (f.life || 0.48); });
   }
@@ -1557,6 +1600,83 @@
   }
 
   /* ---------- enemigos ---------- */
+
+  /* ---------- Etapa 92: aggro + estado persistente ---------- */
+  var AGGRO = { time: 8, range: 700 };   // segundos que dura el aggro sin recibir golpes de ese personaje / distancia máxima para perseguir
+  function nearestChar(w, z, m) {
+    var best = null, bd = 1e9;
+    w.chars.forEach(function (c) { if (c.mapId !== z.id || c.player.state === 'dead') return; var d = Math.abs(c.player.x - m.x); if (d < bd) { bd = d; best = c; } });
+    return best;
+  }
+  // detecta enemigos que perdieron vida y marca como objetivo al personaje que los golpeó primero (c = personaje que acaba de actuar; null = proyectiles/veneno: el más cercano)
+  function aggroScan(w, c) {
+    if (w.cfg.aggro === false) return;
+    var zs = c ? [w.zones[c.mapId]] : Object.keys(w.zones).map(function (k) { return w.zones[k]; });
+    zs.forEach(function (z) {
+      if (!z) return;
+      z.mobs.forEach(function (m) {
+        var prev = m._hp0; m._hp0 = m.hp;
+        if (m.state === 'dead' || m.state === 'dying') { m.aggro = null; return; }
+        if (prev === undefined || m.hp >= prev) return;
+        var who = c || nearestChar(w, z, m);
+        if (!who || who.player.state === 'dead') return;
+        if (!m.aggro) m.aggro = who;
+        if (m.aggro === who) m.aggroT = AGGRO.time;
+      });
+    });
+  }
+  function aggroMove(w, m, dt) {
+    if (!m.aggro || w.cfg.aggro === false) return;
+    var c = m.aggro, p = c.player;
+    if (m.state === 'dying' || m.state === 'dead' || c.mapId !== w.mapId || p.state === 'dead') { m.aggro = null; return; }
+    m.aggroT -= dt; if (m.aggroT <= 0) { m.aggro = null; return; }
+    if ((m.state !== 'move' && m.state !== 'stand') || m.stun || m.freeze || p.node !== m.node) return;
+    var dx = p.x - m.x; if (Math.abs(dx) > AGGRO.range) return;
+    m.dir = dx < 0 ? -1 : 1; m.state = Math.abs(dx) < 14 ? 'stand' : 'move'; m.t = Math.max(m.t, 0.3);
+  }
+  function num(v, d) { return isFinite(v) ? +v : d; }
+  function charSnap(c) {
+    var p = c.player, o = { hp: c.stats.hp, mp: c.stats.mp, b: (c.buffs || []).map(function (b) { return { id: b.id, name: b.name, t: b.t, dur: b.dur, mods: b.mods, icon: b.icon || null }; }) };
+    if (p.state === 'dead') return null;
+    if (p.state === 'ground' && p.node) { o.x = Math.round(p.x * 10) / 10; o.n = p.node.i; o.d = p.dir; }
+    return o;
+  }
+  function charRestore(w, c, st, savedAt) {
+    if (!st || typeof st !== 'object') return;
+    var z = w.zones[c.mapId], p = c.player, el = Math.max(0, (Date.now() - num(savedAt, Date.now())) / 1000);
+    var node = z && z.map.nodes[st.n | 0];
+    if (node && isFinite(st.x) && st.n !== undefined) { p.node = node; p.x = clamp(+st.x, node.minX + 5, node.maxX - 5); p.y = z.map.yAt(node, p.x); p.dir = st.d < 0 ? -1 : 1; p.vx = 0; p.vy = 0; p.state = 'ground'; }
+    if (isFinite(st.hp)) c.stats.hp = clamp(+st.hp, 1, c.stats.maxHp);
+    if (isFinite(st.mp)) c.stats.mp = clamp(+st.mp, 0, c.stats.maxMp);
+    c.buffs = (Array.isArray(st.b) ? st.b : []).filter(function (b) { return b && typeof b.id === 'string' && isFinite(b.t) && b.t - el > 0; }).slice(0, 40).map(function (b) {
+      return { id: b.id, name: String(b.name || b.id), t: b.t - el, dur: num(b.dur, b.t), mods: b.mods && typeof b.mods === 'object' ? b.mods : {}, icon: b.icon || null };
+    });
+  }
+  function bossSnap(w) {
+    var out = {};
+    Object.keys(w.zones).forEach(function (id) {
+      var list = w.zones[id].mobs.filter(function (m) { return m.boss; }).map(function (m) {
+        if (m.state === 'dead') return { d: 1, t: Math.round(m.t) };
+        if (m.state === 'dying') return { d: 1, t: m.boss.respawn };
+        return { d: 0, hp: m.hp };
+      });
+      if (list.length) out[id] = list;
+    });
+    return out;
+  }
+  function bossRestore(w, snap, savedAt) {
+    if (!snap || typeof snap !== 'object') return;
+    var el = Math.max(0, (Date.now() - num(savedAt, Date.now())) / 1000);
+    Object.keys(snap).forEach(function (id) {
+      var z = w.zones[id]; if (!z || !Array.isArray(snap[id])) return;
+      z.mobs.filter(function (m) { return m.boss; }).forEach(function (m, i) {
+        var r = snap[id][i]; if (!r) return;
+        if (r.d) { var left = num(r.t, 0) - el; if (left > 0) { m.state = 'dead'; m.hp = 0; m.t = left; } }
+        else if (isFinite(r.hp)) m.hp = clamp(+r.hp, 1, m.maxHp);
+      });
+    });
+  }
+
   function stepMobs(w, dt) {
     w.mobs.forEach(function (m) {
       if (m.poison) {
@@ -1573,6 +1693,13 @@
 	  if (m.freeze) { m.freeze.t -= dt; if (m.freeze.t <= 0 || m.state === 'dying' || m.state === 'dead') m.freeze = null; }
 	  if (m.freezeStack) { m.freezeStack.t -= dt; if (m.freezeStack.t <= 0 || m.state === 'dying' || m.state === 'dead') m.freezeStack = null; }
 	  if (m.knock) { if (m.state === 'dying' || m.state === 'dead') m.knock = null; else { m.knock.t += dt; var kk = Math.min(1, m.knock.t / m.knock.dur); m.x = m.knock.from + (m.knock.to - m.knock.from) * (1 - (1 - kk) * (1 - kk)); if (kk >= 1) m.knock = null; } }
+	  	  // field bosses: inmunes a knockback, aturdimiento y congelación. Se desactiva con boss.kbImmune: false
+	  if (m.boss && m.boss.kbImmune !== false && m.state !== 'dying' && m.state !== 'dead') {
+	    m.knock = null; m.stun = null; m.freeze = null; m.freezeStack = null;
+	    if (m._ax !== undefined) m.x = m._ax;   // deshace el empujón de los golpes desde la última actualización
+	    if (m.state === 'hit') { m.state = 'move'; m.t = 1 + Math.random() * 2; }
+	  }
+	  aggroMove(w, m, dt);
 	  if (m.mark && m.mark.arm > 0) m.mark.arm -= dt;
 	  if (m.mark) { m.mark.t -= dt; if (m.mark.t <= 0 || m.state === 'dying' || m.state === 'dead') m.mark = null; }
       switch (m.state) {
@@ -1603,6 +1730,7 @@
             else if (m.x > m.node.maxX - 10) { m.x = m.node.maxX - 10; m.dir = -1; }
           }
       }
+	  m._ax = m.x;
       m.y = w.map.yAt(m.node, m.x);
     });
     w.texts.forEach(function (tx) { tx.t += dt; tx.y -= 40 * dt; });
@@ -1647,7 +1775,7 @@
       stepBuffs(w, dt);
       if (w.ai.auto) stepAI(w, dt);
       stepPlayer(w, dt);
-      stepTouch(w, dt);
+      stepTouch(w, dt); aggroScan(w, c);
       if (w.player.state === 'dead') return;   // murió en este paso: sin regeneración ni pociones
       stepExtras(w, dt);
 	  if (c.summon) stepSummon(w, c, dt);
@@ -1656,7 +1784,7 @@
       var z = w.zones[id]; bindZone(w, z);
       stepMobs(w, dt); stepFx(w, dt);
       z.fx = w.fx; z.texts = w.texts;
-      stepProj(w, dt);
+      stepProj(w, dt); aggroScan(w, null);
       z.fx = w.fx; z.texts = w.texts; z.proj = w.proj;   // stepFx/stepMobs reasignan los arreglos filtrados
     });
     Object.keys(w.zones).forEach(function (id) { var tx = w.zones[id].texts; for (var i = tx.length - 1; i >= 0; i--) if (tx[i].txt === '0') tx.splice(i, 1); });   // golpes fallados: ya salió "MISS", no un "0"
@@ -1685,7 +1813,7 @@
     });
   }
 
-  var api = { weaponStage: weaponStage, attackTime: attackTime, EXP_PEN: EXP_PEN, expPen: expPen, ACC: ACC, hitChance: hitChance, OFFLINE: OFFLINE, offlineGain: offlineGain, sampleRates: sampleRates, ELITE: ELITE, mapLimit: mapLimit, mapCount: mapCount, PARTY_BONUS: PARTY_BONUS, cstatsOf: cstatsOf, C: C, createWorld: createWorld, step: step, STEP: C.STEP, bfs: bfs, alive: alive, expToNext: expToNext, maxHp: maxHp, MAX_LEVEL: MAX_LEVEL, addCharacter: addCharacter, setLeader: setLeader, mods: mods, advanceJob: advanceJob, advanceCheck: advanceCheck, skillAllowed: skillAllowed, selectChar: selectChar, travel: travel, applyBuff: applyBuff, setZone: setZone, zoneOf: zoneOf, sanitizeZones: sanitizeZones };
+  var api = { aggroScan: aggroScan, charSnap: charSnap, charRestore: charRestore, bossSnap: bossSnap, bossRestore: bossRestore, weaponStage: weaponStage, attackTime: attackTime, EXP_PEN: EXP_PEN, expPen: expPen, ACC: ACC, hitChance: hitChance, OFFLINE: OFFLINE, offlineGain: offlineGain, sampleRates: sampleRates, ELITE: ELITE, mapLimit: mapLimit, mapCount: mapCount, PARTY_BONUS: PARTY_BONUS, cstatsOf: cstatsOf, C: C, createWorld: createWorld, step: step, STEP: C.STEP, bfs: bfs, alive: alive, expToNext: expToNext, maxHp: maxHp, MAX_LEVEL: MAX_LEVEL, addCharacter: addCharacter, setLeader: setLeader, mods: mods, advanceJob: advanceJob, advanceCheck: advanceCheck, skillAllowed: skillAllowed, selectChar: selectChar, travel: travel, applyBuff: applyBuff, setZone: setZone, zoneOf: zoneOf, sanitizeZones: sanitizeZones };
   root.MapleSim = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

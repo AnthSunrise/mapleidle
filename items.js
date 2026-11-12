@@ -286,7 +286,8 @@
   }
   function potEligible(id) { var it = ITEMS[id]; return !!(it && it.kind === 'equip' && it.lv > 0 && !it.only); }
   function pickLine(it, v, taken, rnd) {
-    var pool = potPool(it, v).filter(function (l) { return !taken.some(function (t) { return t.k === l.k && t.s === l.s; }); }), tot = 0; if (!pool.length) return null;
+    var LIMIT = { crit: 1, critDmg: 1, boss: 2 };   // como en el juego original: las líneas de stat/HP/ATT sí pueden repetirse (hasta 3 iguales); crítico 1 vez, boss damage 2
+    var pool = potPool(it, v).filter(function (l) { return !LIMIT[l.k] || taken.filter(function (t) { return t.k === l.k; }).length < LIMIT[l.k]; }), tot = 0; if (!pool.length) return null;
     pool.forEach(function (l) { tot += l.w; }); var r = rnd() * tot, c = null;
     for (var i = 0; i < pool.length; i++) { r -= pool[i].w; if (r <= 0) { c = pool[i]; break; } } c = c || pool[pool.length - 1];
     var o = { k: c.k, v: potValue(c.k, v < 0 ? 0 : v, it.lv), pr: v }; if (c.s) o.s = c.s; return o;

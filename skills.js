@@ -195,24 +195,35 @@
     hitAt: 0.3, total: 0.84, effectDelay: 60,
     effect: [[30, 43], [42, 73], [45, 81], [46, 85], [63, 85], [61, 128], [66, 121], [68, 120], [68, 118], [44, 123], [43, 132], [41, 140], [40, 138], [33, 143]].map(function (a) { return { ox: a[0], oy: a[1] }; })
   };
-  SKILLS.ftPowerReflection = {   // 1101007: refleja x=10+x % del daño recibido (máx. y=100+20*x por golpe); 60+6*x s
-    id: 'ftPowerReflection', cls: 'warrior', branches: FT, job: 2, skillId: 1101007, name: 'Power Reflection', maxLevel: 20, buff: 'powerReflection', req: { ftRage: 3 },
-    icon: 'assets/skill/ft_power_reflection_icon.png', dir: 'assets/skill/ft_power_reflection/',
-    mods: function (x) { return { reflect: 10 + x, reflectMax: 100 + 20 * x }; }, duration: function (x) { return 60 + 6 * x; }, mpCon: function (x) { return 10 + Math.floor(x / 2); }, renewAt: 8,
-    info: function (x) { return $t('Refleja {0}% del daño recibido (máx. {1}) · {2} s', 10 + x, 100 + 20 * x, this.duration(x)); },
-    hitAt: 0.3, total: 0.84, effectDelay: 60,
-    effect: [[57, 127], [57, 130], [57, 119], [57, 115], [57, 104], [57, 103], [57, 102], [56, 102], [57, 102], [50, 102], [51, 102], [40, 102], [32, 102], [32, 102]].map(function (a) { return { ox: a[0], oy: a[1] }; })
+  SKILLS.ftComboFury = {
+    id: 'ftComboFury', cls: 'warrior', branches: FT, job: 2, skillId: 1101012, name: 'Combo Fury', maxLevel: 10, action: 'comboForce',
+    icon: 'assets/skill/ft_combo_fury_icon.png', dir: 'assets/skill/ft_combo_fury/',
+    damage: function (x) { return 110 + 3 * x; },
+    mpCon: function (x) { return 10 + 2 * Math.floor(x / 5); },
+    mobCount: 6, attackCount: 2,
+    range: { x1: 10, x2: 450, y1: -80, y2: 5 },
+    windup: 0.35, hitAt: 0.5, total: 0.85,
+    cooldown: 3,
+    pullTarget: true,
+    effect: [[429, 80], [461, 89], [468, 100], [467, 103], [450, 127], [390, 103], [270, 74], [215, 63]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    effectDelay: 90,
+    hit: [[72, 98], [84, 59], [56, 54], [39, 56], [15, 9]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    hitDelay: 90
   };
-  SKILLS.ftGroundSmash = {   // 1101008: damage 200+18*x, mpCon 5+x, 4 enemigos, alcance 200
-    id: 'ftGroundSmash', cls: 'warrior', branches: FT, job: 2, skillId: 1101008, name: 'Ground Smash', maxLevel: 10,
-    icon: 'assets/skill/ft_ground_smash_icon.png', dir: 'assets/skill/ft_ground_smash/', action: 'swingO2',
-    damage: function (x) { return 200 + 18 * x; }, mpCon: function (x) { return 5 + x; },
-    mobCount: 4, attackCount: 1,
-    range: { x1: 10, x2: 200, y1: -113, y2: 0 },
-    windup: 0.4, hitAt: 0.6, total: 0.95,
-    effect: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [131, 66], [181, 85], [241, 85], [246, 85], [248, 80], [236, 80], [232, 77], [219, 71]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
-    effectDelay: 80,
-    hit: [{ ox: 75, oy: 49 }, { ox: 56, oy: 45 }, { ox: 45, oy: 41 }, { ox: 43, oy: 42 }, { ox: 42, oy: 40 }], hitDelay: 90
+  SKILLS.ftBrandish = {
+    id: 'ftBrandish', cls: 'warrior', branches: FT, job: 2, skillId: 1101011, name: 'Brandish', maxLevel: 20,
+    icon: 'assets/skill/ft_brandish_icon.png', dir: 'assets/skill/ft_brandish/', action: 'brandishNew2', action1h: 'brandishNew',
+    damage: function (x) { return 220 + 3 * x; }, mpCon: function (x) { return 10 + Math.floor(x / 3); },
+    mobCount: 6, attackCount: 1, 
+    range: { x1: 10, x2: 185, y1: -125, y2: 35 },
+    windup: 0, hitAt: 0.36, hitGap: 0.48, total: 0.9,
+    effect0Start: 0.24, // Ignora el frame vacío del WZ
+    effect0: [[23, 65], [35, 65], [39, 64], [49, 67], [52, 68], [63, 68]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    effect0Delay: 120,
+    effect: [[8, 65], [167, 122], [164, 116], [153, 115], [143, 121], [202, 123], [209, 121], [207, 116], [204, 83], [205, 13]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    effectDelay: 120,
+    hit: [[82, 64], [82, 63], [87, 64], [83, 63], [41, 103], [41, 102], [45, 109], [51, 105], [52, 91]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    hitDelay: 120
   };
   SKILLS.ftWarriorLeap = {   // 1101010 (WZ máx. 10, aquí 5): impulso horizontal que ayuda al Warrior a moverse (como el Teleport del Mage). Sin datos en el WZ: alcance y enfriamiento propios
     id: 'ftWarriorLeap', cls: 'warrior', branches: FT, job: 2, skillId: 1101010, name: 'Warrior Leap', maxLevel: 5, teleportSkill: true, leap: true,
@@ -232,8 +243,25 @@
   cloneJob2(SKILLS.ftFinalAttack, 'pgFinalAttack', 'page', 1200002, 'pg', 'ft');
   cloneJob2(SKILLS.ftPhysicalTraining, 'pgPhysicalTraining', 'page', 1200009, 'pg', 'ft');
   cloneJob2(SKILLS.ftWeaponBooster, 'pgWeaponBooster', 'page', 1201004, 'pg', 'ft');
-  cloneJob2(SKILLS.ftGroundSmash, 'pgGroundSmash', 'page', 1201008, 'pg', 'ft');
   cloneJob2(SKILLS.ftWarriorLeap, 'pgWarriorLeap', 'page', 1201010, 'pg', 'ft');
+  SKILLS.pgFireCharge = {
+    id: 'pgFireCharge', cls: 'warrior', branches: ['page'], job: 2, skillId: 1201011, name: 'Fire Charge', maxLevel: 15,
+    icon: 'assets/skill/pg_fire_charge_icon.png', action: 'chargeBlow', dir: 'assets/skill/pg_fire_charge/',
+    damage: function (x) { return Math.round(100 + 2 * eq(x, 20, 15)); },
+    mpCon: function (x) { return Math.round(10 + eq(x, 20, 15)); },
+    dot: function (x) { return Math.round(55 + eq(x, 20, 15)); },
+    dotTime: function (x) { return 2 + Math.ceil(eq(x, 20, 15) / 5); },
+    elemAttr: 'f', fire: true, mobCount: 4, attackCount: 3,
+    range: { x1: 0, x2: 350, y1: -100, y2: 30 },
+    windup: 0.27, hitAt: 0.45, total: 1.0,
+    effectStart: 0.27, effect0Start: 0.27,
+    effectDelay: 90, effect0Delay: 90,
+    effect: [[133,107],[134,104],[137,108],[141,112],[141,112]].map(function(a){return{ox:a[0],oy:a[1]};}),
+    effect: [[78,152],[63,148],[46,137],[327,200],[359,193],[409,160],[411,162],[410,156],[408,158]].map(function(a){return{ox:a[0],oy:a[1]};}),
+    hit: [[59,69],[65,85],[70,81],[71,77]].map(function(a){return{ox:a[0],oy:a[1]};}),
+    hitDelay: 120,
+    viewByWeapon: function(wt) { return wt === 'mace' ? 'pgFireChargeMace' : 'pgFireCharge'; }
+  };
   SKILLS.pgThreaten = {   // 1201006: debilita a hasta 6 enemigos (±300 x ±200): prob 40+x %, su daño -(10+x)% durante 40+2*x s
     id: 'pgThreaten', cls: 'warrior', branches: ['page'], job: 2, skillId: 1201006, name: 'Threaten', maxLevel: 20, debuff: true,
     icon: 'assets/skill/pg_threaten_icon.png', dir: 'assets/skill/pg_threaten/',
@@ -243,13 +271,23 @@
     effect: [[27, 60], [27, 60], [73, 163], [124, 201], [123, 200], [123, 200], [123, 200], [125, 208], [121, 224], [129, 232], [129, 232], [129, 232]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
     mobFx: [[18, 5], [16, 4], [4, 7], [4, 11], [11, 11], [9, 8], [2, 14], [5, 17]], mobFxDelay: 70
   };
-  SKILLS.pgPowerGuard = {   // 1201007: refleja x=10+2*x % del daño recibido (máx. y=20+4*x por golpe); 60+6*x s. Pide Threaten 3
-    id: 'pgPowerGuard', cls: 'warrior', branches: ['page'], job: 2, skillId: 1201007, name: 'Power Guard', maxLevel: 20, buff: 'powerGuard', req: { pgThreaten: 3 },
-    icon: 'assets/skill/pg_power_guard_icon.png', dir: 'assets/skill/pg_power_guard/',
-    mods: function (x) { return { reflect: 10 + 2 * x, reflectMax: 20 + 4 * x }; }, duration: function (x) { return 60 + 6 * x; }, mpCon: function (x) { return 10 + Math.floor(x / 2); }, renewAt: 8,
-    info: function (x) { return $t('Refleja {0}% del daño recibido (máx. {1}) · {2} s', 10 + 2 * x, 20 + 4 * x, this.duration(x)); },
-    hitAt: 0.3, total: 0.84, effectDelay: 60,
-    effect: [[57, 127], [57, 130], [57, 119], [57, 115], [57, 104], [57, 103], [57, 102], [56, 102], [57, 102], [50, 102], [51, 102], [40, 102], [32, 102], [32, 102]].map(function (a) { return { ox: a[0], oy: a[1] }; })
+  SKILLS.pgIceCharge = {
+    id: 'pgIceCharge', cls: 'warrior', branches: ['page'], job: 2, skillId: 1201012, name: 'Ice Charge', maxLevel: 15,
+    icon: 'assets/skill/pg_ice_charge_icon.png', action: 'chargeBlow', dir: 'assets/skill/pg_ice_charge/',
+    damage: function (x) { return Math.round(100 + 2 * eq(x, 20, 15)); },
+    mpCon: function (x) { return Math.round(10 + eq(x, 20, 15)); },
+    stunProp: function (x) { return Math.round(30 + 3 * eq(x, 20, 15)); },
+    stunTime: function (x) { return 1 + Math.ceil(eq(x, 20, 15) / 4); },
+    elemAttr: 'i', ice: true, mobCount: 4, attackCount: 3,
+    range: { x1: 0, x2: 350, y1: -100, y2: 30 },
+    windup: 0.27, hitAt: 0.45, total: 1.0,
+    effectStart: 0.27, effect0Start: 0.27,
+    effectDelay: 90, effect0Delay: 90,
+    effect0: [[133,107],[134,104],[137,108],[141,112],[140,111]].map(function(a){return{ox:a[0],oy:a[1]};}),
+    effect: [[78,154],[63,145],[46,131],[391,191],[400,178],[410,170],[411,172],[410,171],[408,148]].map(function(a){return{ox:a[0],oy:a[1]};}),
+    hit: [[60,69],[64,85],[65,81],[65,72],[68,75]].map(function(a){return{ox:a[0],oy:a[1]};}),
+    hitDelay: 120,
+    viewByWeapon: function(wt) { return wt === 'mace' ? 'pgIceChargeMace' : 'pgIceCharge'; }
   };
 
   /* ---------- Spearman (130.img): como el Page comparte con el Fighter Ground Smash, Warrior Leap y Physical Training (idénticos); Weapon Mastery,
@@ -258,8 +296,20 @@
   cloneJob2(SKILLS.ftFinalAttack, 'spFinalAttack', 'spearman', 1300002, 'sp', 'ft', { icon: 'assets/skill/sp_final_attack_icon.png', dir: 'assets/skill/sp_final_attack/', hit: [{ ox: 47, oy: 49 }, { ox: 53, oy: 57 }, { ox: 55, oy: 53 }] });
   cloneJob2(SKILLS.ftPhysicalTraining, 'spPhysicalTraining', 'spearman', 1300009, 'sp', 'ft');
   cloneJob2(SKILLS.ftWeaponBooster, 'spWeaponBooster', 'spearman', 1301004, 'sp', 'ft', { icon: 'assets/skill/sp_weapon_booster_icon.png' });
-  cloneJob2(SKILLS.ftGroundSmash, 'spGroundSmash', 'spearman', 1301008, 'sp', 'ft');   // el WZ da nivel máx. 10 (misma skill que Fighter/Page)
   cloneJob2(SKILLS.ftWarriorLeap, 'spWarriorLeap', 'spearman', 1301010, 'sp', 'ft');
+  SKILLS.spPiercingDrive = {
+    id: 'spPiercingDrive', cls: 'warrior', branches: ['spearman'], job: 2, skillId: 1301011, name: 'Piercing Drive', maxLevel: 10,
+    icon: 'assets/skill/sp_piercing_drive_icon.png', dir: 'assets/skill/sp_piercing_drive/', action: 'stabT1',
+    damage: function (x) { return 161 + 2 * eq(x, 20, 10); },         // Lv10 = 201% (WZ Lv20)
+    mpCon: function (x) { return 17 + Math.floor(eq(x, 20, 10) / 6); },
+    mobCount: 8, attackCount: 2,
+    range: { x1: 10, x2: 350, y1: -100, y2: 5 },
+    windup: 0, hitAt: 0.3, total: 0.95,
+    effect: [[16, 29], [346, 89], [351, 96], [354, 97], [355, 92], [273, 85], [188, 85], [191, 61]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    effectDelay: 90,
+    hit: [[99, 70], [108, 66], [112, 75], [115, 83], [118, 86]].map(function (a) { return { ox: a[0], oy: a[1] }; }),
+    hitDelay: 120
+  };
   SKILLS.spIronWill = {   // 1301006 (massSpell): DEF del party del mapa. pdd = 15*x -> DEF = pdd * 0.25 (como Iron Body); 40+10*x s
     id: 'spIronWill', cls: 'warrior', branches: ['spearman'], job: 2, skillId: 1301006, name: 'Iron Will', maxLevel: 20, buff: 'ironWill',
     icon: 'assets/skill/sp_iron_will_icon.png', dir: 'assets/skill/sp_iron_will/',
@@ -948,7 +998,7 @@
   }
   rescale('crInvincible', 20); rescale('htSoulArrow', 20); rescale('asGustCharm', 20); rescale('bdSteal', 10);
 
-   var ORDER = ['slashBlast', 'ironBody', 'warriorMastery', 'haste', 'luckySeven', 'nimbleBody', 'arrowBlow', 'archerMastery', 'criticalShot', 'magicClaw', 'magicArmor', 'magicGuard', 'teleport', 'mpBoost', 'somersaultKick', 'shadowHeart', 'bulletTime', 'dash', 'hpBoost', 'ftWeaponMastery', 'ftFinalAttack', 'ftPhysicalTraining', 'ftWeaponBooster', 'ftRage', 'ftPowerReflection', 'ftGroundSmash', 'ftWarriorLeap', 'pgWeaponMastery', 'pgFinalAttack', 'pgPhysicalTraining', 'pgWeaponBooster', 'pgThreaten', 'pgPowerGuard', 'pgGroundSmash', 'pgWarriorLeap', 'spWeaponMastery', 'spFinalAttack', 'spPhysicalTraining', 'spWeaponBooster', 'spIronWill', 'spHyperBody', 'spGroundSmash', 'spWarriorLeap', 'fpSpellMastery', 'fpMpEater', 'fpHighWisdom', 'fpMeditate', 'fpMagicBooster', 'fpFlameArrow', 'fpPoisonBreath', 'fpIgnite', 'htBowMastery', 'htFinalAttack', 'htPhysicalTraining', 'htBowBooster', 'htFlashJump', 'htArrowBomb', 'htSoulArrow', 'htHawk', 'cbCrossbowMastery', 'cbFinalAttack', 'cbPhysicalTraining', 'cbCrossbowBooster', 'cbFlashJump', 'cbIronArrow', 'cbHawk', 'cbNetToss', 'asClawMastery', 'asCriticalThrow', 'asPhysicalTraining', 'asClawBooster', 'asFlashJump', 'asShurikenBurst', 'asGustCharm', 'asMark', 'bwKnuckleMastery', 'bwPhysicalTraining', 'bwPerseverance', 'bwKnuckleBooster', 'bwDarkClarity', 'bwCorkscrewBlow', 'bwTornadoUppercut', 'bdDaggerMastery', 'bdPhysicalTraining', 'bdShieldMastery', 'bdDaggerBooster', 'bdSteal', 'bdFlashJump', 'bdChannelKarma', 'bdSavageBlow', 'ilMpEater', 'ilSpellMastery', 'ilHighWisdom', 'ilMeditate', 'ilMagicBooster', 'ilFreezingCrush', 'ilColdBeam', 'ilThunderbolt', 'crMpEater', 'crSpellMastery', 'crHighWisdom', 'crHeal', 'crInvincible', 'crBless', 'crHolyArrow', 'crMagicBooster', 'gsGunMastery', 'gsGunBooster', 'gsPhysicalTraining', 'gsTripleShot', 'gsRapidBlast', 'gsWings', 'gsGrenade', 'gsPerseverance'];
+   var ORDER = ['slashBlast', 'ironBody', 'warriorMastery', 'haste', 'luckySeven', 'nimbleBody', 'arrowBlow', 'archerMastery', 'criticalShot', 'magicClaw', 'magicArmor', 'magicGuard', 'teleport', 'mpBoost', 'somersaultKick', 'shadowHeart', 'bulletTime', 'dash', 'hpBoost', 'ftWeaponMastery', 'ftFinalAttack', 'ftPhysicalTraining', 'ftWeaponBooster', 'ftRage', 'ftComboFury', 'ftBrandish', 'ftWarriorLeap', 'pgWeaponMastery', 'pgFinalAttack', 'pgPhysicalTraining', 'pgWeaponBooster', 'pgThreaten', 'pgIceCharge', 'pgFireCharge', 'pgWarriorLeap', 'spWeaponMastery', 'spFinalAttack', 'spPhysicalTraining', 'spWeaponBooster', 'spIronWill', 'spHyperBody', 'spPiercingDrive', 'spWarriorLeap', 'fpSpellMastery', 'fpMpEater', 'fpHighWisdom', 'fpMeditate', 'fpMagicBooster', 'fpFlameArrow', 'fpPoisonBreath', 'fpIgnite', 'htBowMastery', 'htFinalAttack', 'htPhysicalTraining', 'htBowBooster', 'htFlashJump', 'htArrowBomb', 'htSoulArrow', 'htHawk', 'cbCrossbowMastery', 'cbFinalAttack', 'cbPhysicalTraining', 'cbCrossbowBooster', 'cbFlashJump', 'cbIronArrow', 'cbHawk', 'cbNetToss', 'asClawMastery', 'asCriticalThrow', 'asPhysicalTraining', 'asClawBooster', 'asFlashJump', 'asShurikenBurst', 'asGustCharm', 'asMark', 'bwKnuckleMastery', 'bwPhysicalTraining', 'bwPerseverance', 'bwKnuckleBooster', 'bwDarkClarity', 'bwCorkscrewBlow', 'bwTornadoUppercut', 'bdDaggerMastery', 'bdPhysicalTraining', 'bdShieldMastery', 'bdDaggerBooster', 'bdSteal', 'bdFlashJump', 'bdChannelKarma', 'bdSavageBlow', 'ilMpEater', 'ilSpellMastery', 'ilHighWisdom', 'ilMeditate', 'ilMagicBooster', 'ilFreezingCrush', 'ilColdBeam', 'ilThunderbolt', 'crMpEater', 'crSpellMastery', 'crHighWisdom', 'crHeal', 'crInvincible', 'crBless', 'crHolyArrow', 'crMagicBooster', 'gsGunMastery', 'gsGunBooster', 'gsPhysicalTraining', 'gsTripleShot', 'gsRapidBlast', 'gsWings', 'gsGrenade', 'gsPerseverance'];
   // Lucky Seven (Thief, 4001344). Del 400.img: damage "110+4*x", mpCon "8+2*d(x/6)", bulletCount 2, maxLevel 20.
   // Efectos (lanzamiento y golpe) cambian con el nivel del personaje: base, 10, 15, 20 y 25.
   var LS_TIERS = {
@@ -1002,7 +1052,12 @@
   }
   function learn(world, id) { if (!canLearn(world, id)) return false; world.skills[id].level++; return true; }
 
-  function view(sk, lv) { return sk && sk.viewFor ? (SKILLS[sk.viewFor(lv)] || sk) : sk; }   // aspecto visual de la skill según el nivel del personaje
+  function view(sk, lv, weaponType) {
+    if (!sk) return sk;
+    if (sk.viewByWeapon && weaponType) return SKILLS[sk.viewByWeapon(weaponType)] || sk;
+    if (sk.viewFor) return SKILLS[sk.viewFor(lv)] || sk;
+    return sk;
+  }
   var api = { view: view, SKILLS: SKILLS, ORDER: ORDER, SP_PER_LEVEL: SP_PER_LEVEL, newSkills: newSkills, sanitize: sanitize, spAvailable: spAvailable, canLearn: canLearn, spTotal: spTotal, jobOf: jobOf, JOB_START: JOB_START, learn: learn };
   root.MapleSkills = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

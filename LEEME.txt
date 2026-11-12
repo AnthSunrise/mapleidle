@@ -822,3 +822,28 @@ ETAPA 87f - Documentación de traspaso
 
 ETAPA 88 - Etiqueta de nombre estilo MapleStory (game.js)
   - Caja negra 66% opaca con esquinas cortadas, texto blanco 12px sin borde, bajo los pies. El personaje seleccionado conserva el texto amarillo.
+
+ETAPA 89 - Editor básico de colisión de mapas
+  - tools/map_editor.html: dibujar plataformas, cuerdas/escaleras, enemigos e inicio sobre tu PNG; abrir y retocar mapdata existentes; exporta mapdata_<id>.js + líneas para index.html y maps.js.
+  - tests/test_mapeditor.js; docs/GUIA_EDITOR_MAPAS.md.
+
+ETAPA 90 - Super script de mapas
+  - tools/nuevo_mapa.py: <mapa>.img + Back + enemigos -> mapdata, backdata, assets/back, assets/mob y un .txt con las líneas a pegar en index.html/maps.js/sim.js/game.js. Documentado en docs/GUIA_AGREGAR_MAPAS.md.
+
+ETAPA 90b - nuevo_mapa.py avisa si faltan los scripts auxiliares e importa enemigos extra (--mob) que no salen en el mapa.
+
+ETAPA 91 - Field bosses inmunes a knockback/stun/freeze
+  - sim.js (bucle de enemigos): bloque "field bosses: inmunes…" antes de `if (m.mark && m.mark.arm > 0)` y `m._ax = m.x;` antes de `m.y = w.map.yAt(m.node, m.x);` al final del forEach. Desactivable por jefe con kbImmune: false en su entrada de fieldBosses.
+  - tests/test_bossimmune.js. Motivo: el jefe quedaba en estado 'hit' (no se mueve ni daña por contacto).
+
+ETAPA 92 - Feedbacks: stand, aggro, jefes persistentes, estado al volver
+- Enemigos parados usan el sprite 'stand' (si el mob no lo tiene, sigue con move).
+- Aggro: el enemigo persigue al personaje que lo golpeó primero (8 s sin recibir golpes de él, o si cambia de plataforma/muere, lo suelta). Se desactiva con cfg.aggro = false en sim.js. El "ataque" sigue siendo el daño por contacto.
+- Jefes: se guarda su vida o el tiempo que falta para reaparecer (maple_save.bosses); refrescar ya no los revive.
+- Al volver: cada personaje recupera posición, dirección, HP/MP y buffs vigentes (descontando el tiempo ausente). Se guarda también al refrescar/cerrar (pagehide).
+- Aplicar a game.js/sim.js propios: python3 tools/parche_etapa92.py (idempotente). Prueba: tests/test_etapa92.js.
+- Pendiente (etapa aparte): ataques propios de enemigos/jefes (necesita sprites attack1 en import_mob.py + estado 'attack' en la IA + daño MAD/PAD).
+
+ETAPA 94 - Potenciales: el mismo stat puede repetirse
+- Antes pickLine descartaba cualquier línea ya sacada (nunca 2-3 líneas iguales). Ahora se pueden repetir las líneas de stat/HP/ATT (hasta 3 iguales, como en el juego original); crítico máx. 1 y boss damage máx. 2.
+- items.js (pickLine) y tests/test_potential.js.

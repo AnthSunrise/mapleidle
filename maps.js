@@ -10,6 +10,8 @@
   if (root.MAPDATA_103030200) M.swamp = { name: 'Kerning Swamp', region: 'Kerning Subway', lv: 45, img: 'map/swamp.png', off: { x: 1620, y: 628 }, data: root.MAPDATA_103030200, homeFh: 59, spawnX: 0 };
   if (root.MAPDATA_104020000) M.mushroom = { name: 'Forest West of Henesys', region: 'Henesys', lv: 15, img: 'map/forest.png', off: { x: 2480, y: 1410 }, data: root.MAPDATA_104020000, homeFh: 31, spawnX: 45 };
   if (root.MAPDATA_102030000) M.boars = { name: 'Wild Boar Land', region: 'Perion', lv: 50, img: 'map/boars.png', off: { x: 1182, y: -713 }, data: root.MAPDATA_102030000, homeFh: 1, spawnX: -45 };
+  if (root.MAPDATA_200010131) M.garden = { name: 'Garden of Green', region: 'Orbis', lv: 70, img: 'map/garden.png', off: { x: 1774, y: 1110 }, data: root.MAPDATA_200010131, homeFh: 230, spawnX: 92 };
+  if (root.MAPDATA_200070000) M.cloud = { name: 'Cloud Park', region: 'Orbis', lv: 70, img: 'map/cloud.png', off: { x: 2064, y: 2042 }, data: root.MAPDATA_200070000, homeFh: 19, spawnX: -495 };
 
   root.MAPLE_MAPS = M;
   // zonas del mapa mundial (las que no tienen mapa jugable aparecen bloqueadas): [región, nivel, nombre]

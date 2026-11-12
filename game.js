@@ -35,6 +35,8 @@
           exp: Math.max(0, +c.exp || 0), potions: window.MapleItems.sanitizePotions(c.potions), branch: window.MapleJobs && window.MapleJobs.valid(cls, c.branch) ? c.branch : null, equip: window.MapleItems.sanitize(null, c.equip, cls).equip, skills: window.MapleSkills.sanitize(c.skills), look: c.look && typeof c.look.hair === 'string' && typeof c.look.face === 'string' ? { hair: c.look.hair, face: c.look.face } : null, zones: S.sanitizeZones(c.zones), helpBoss: !!c.helpBoss });
       });
       world.mesos = Math.max(0, +sv.mesos || 0);
+      list.slice(0, 6).forEach(function (c, i) { if (world.chars[i]) S.charRestore(world, world.chars[i], c.st, sv.savedAt); });
+      S.bossRestore(world, sv.bosses, sv.savedAt);
       list.slice(0, 6).forEach(function (c, i) { var ch = world.chars[i]; if (ch && isFinite(c.farmExp) && c.farmExp > 0) { ch.farmExp = +c.farmExp; ch.farmN = Math.max(1, c.farmN | 0); } });   // ritmo de farmeo medido (progreso offline)
       if (sv.farm && isFinite(sv.farm.mesos)) { world.farm = { n: Math.max(1, sv.farm.n | 0), mesos: Math.max(0, +sv.farm.mesos), items: {} }; Object.keys(sv.farm.items || {}).forEach(function (k) { if (isFinite(sv.farm.items[k]) && sv.farm.items[k] > 0) world.farm.items[k] = +sv.farm.items[k]; }); }
       world.inv = window.MapleItems.sanitize(sv.inv, null).inv;
@@ -50,8 +52,8 @@
   function save() {
     if (noSave) return;
     try {
-      localStorage.setItem('maple_save', JSON.stringify({ v: 2, savedAt: lastRun, quests: world.quests || null, farm: world.farm || null, leader: world.leader ? world.chars.indexOf(world.leader) : null, mesos: world.mesos, inv: world.inv, selected: world.selected,
-        chars: world.chars.map(function (c) { return { name: c.name, cls: c.cls, mapId: c.mapId, branch: c.branch || null, level: c.stats.level, exp: c.stats.exp, equip: c.equip, skills: c.skills, potions: c.potions, look: c.look || null, zones: c.zones || {}, helpBoss: !!c.helpBoss, farmExp: Math.round((c.farmExp || 0) * 1e4) / 1e4, farmN: c.farmN || 0 }; }) }));
+      localStorage.setItem('maple_save', JSON.stringify({ v: 2, savedAt: lastRun, bosses: S.bossSnap(world), quests: world.quests || null, farm: world.farm || null, leader: world.leader ? world.chars.indexOf(world.leader) : null, mesos: world.mesos, inv: world.inv, selected: world.selected,
+        chars: world.chars.map(function (c) { return { name: c.name, cls: c.cls, mapId: c.mapId, branch: c.branch || null, level: c.stats.level, exp: c.stats.exp, equip: c.equip, skills: c.skills, potions: c.potions, look: c.look || null, zones: c.zones || {}, helpBoss: !!c.helpBoss, st: S.charSnap(c), farmExp: Math.round((c.farmExp || 0) * 1e4) / 1e4, farmN: c.farmN || 0 }; }) }));
     } catch (e) {}
   }
   function resetGame() {   // borra la partida (y las posiciones de cámara) y recarga
@@ -125,7 +127,11 @@
       }
       if (SKD.teleportSkill) { if (SKD.effect && SKD.dir) A.skill[sid] = { effect: await R('effect_', SKD.effect.length), hit: [] }; return; }   // Flash Jump / Wings: solo el efecto
       if (SKD.buff || SKD.debuff || (SKD.ranged && !SKD.ball) || SKD.passiveSkill) return;   // ranged con `ball` (Triple Shot) sí carga efecto y golpe
-      A.skill[sid] = { effect: await R('effect_', SKD.effect.length), hit: await R('hit_', SKD.hit.length) };
+      // vistas ocultas (Fire Charge sword/mace, Ice Charge sword/mace) solo tienen effect, no hit
+      var effN = SKD.effect ? SKD.effect.length : 0;
+      var eff0N = SKD.effect0 ? SKD.effect0.length : 0;
+      var hitN = SKD.hit ? SKD.hit.length : 0;
+      A.skill[sid] = { effect: await R('effect_', effN), effect0: await R('effect0_', eff0N), hit: await R('hit_', hitN) };
     }));
     A.arrow = await loadImg(ASSETS + 'skill/arrow.png');
     A.basic = {}; var BF = window.MapleBasicFx || {};   // animaciones de BasicEff.img: Teleport, SoulRush, Flying, LevelUp, JobChanged
@@ -170,10 +176,12 @@
       ['warrior', 'thief'].forEach(function (cl) { ['stand', 'walk', 'jump', 'swingO1', 'swingO2', 'throw', 'alert'].forEach(function (k) { A.chars[cl][k] = []; }); });
     }
     await loadNums();
-    await Promise.all(['mushmom', 'snail_blue', 'snail_red', 'blue_mushroom', 'golem', 'wraith', 'swamp', 'octopus', 'orange_mushroom', 'pig', 'slime', 'wild_boar'].map(async function (kind) {
+    await Promise.all(['luster_pixie', 'papa_pixie', 'grupin', 'eliza', 'mushmom', 'snail_blue', 'snail_red', 'blue_mushroom', 'golem', 'wraith', 'swamp', 'octopus', 'orange_mushroom', 'pig', 'slime', 'wild_boar'].map(async function (kind) {
       var d = { move: await loadSeq('mob/' + kind + '/move') };
       if (!d.move.length) d.move = await loadSeq('mob/' + kind + '/stand');
       d.hit = await loadSeq('mob/' + kind + '/hit');
+      d.stand = await loadSeq('mob/' + kind + '/stand');
+      if (!d.stand.length) d.stand = null;
       A.mob[kind] = d;
     }));
     seqSave();
@@ -313,7 +321,7 @@
     // el motor de capas solo necesita ids (texto): los equipos con potencial/scrolls son objetos { id, pot, sc }, así que se le pasa una vista con los ids planos
     var MI = window.MapleItems, pe = {}; for (var sl in ch.equip) if (ch.equip[sl]) pe[sl] = MI ? MI.idOf(ch.equip[sl]) : ch.equip[sl];
     var ch0 = ch; ch = { cls: ch0.cls, branch: ch0.branch, look: ch0.look || (ch0.look = L.defaultLook(ch0.cls)), equip: pe };
-    var p = ch0.player, ms = world.t * 1000, act = 'stand1', fi = 0, loop = true, fixed = null;
+    var p = ch0.player, ms = world.t * 1000, act = 'stand1', fi = 0, loop = true, fixed = null, compMs = null;
     var tdel = world.cfg.attack.throw.delay / 1000;
     // CORRECCIÓN BRAWLER & ASSASSIN: Manejo de animaciones avanzadas
     var rawAct = p.atk && p.atk.skill ? p.atk.skill.action : null;
@@ -323,7 +331,7 @@
     }
     else if (p.atk && p.atk.skill && p.atk.skill.buff) { act = 'alert'; fi = p.atk.t / 0.15; loop = false; }
     else if (p.atk && p.atk.skill && p.atk.skill.ranged) { act = p.atk.skill.action || throwAction(ch.cls); fi = p.atk.t / tdel; loop = false; }
-    else if (p.atk && p.atk.skill) { var sw = p.atk.t - p.atk.skill.windup; loop = false; if (sw >= 0) { act = p.atk.skill.action || 'swingO2'; fi = act === 'somersault' ? 1 + sw / 0.12 : sw / (world.cfg.attack.swingO2.delay / 1000); loop = false; } }
+    else if (p.atk && p.atk.skill) { var sw = p.atk.t - p.atk.skill.windup; loop = false; if (sw >= 0) { act = p.atk.skill.action || 'swingO2'; if (p.atk.skill.action1h) { var wid = ch.equip && ch.equip.weapon ? +ch.equip.weapon : 0, wc = Math.floor(wid / 10000); if (!(wc >= 140 && wc <= 144)) act = p.atk.skill.action1h; } compMs = L.isComp && L.isComp(act) && act !== 'somersault' ? sw * 1000 : null; fi = act === 'somersault' ? 1 + sw / 0.12 : sw / (world.cfg.attack.swingO2.delay / 1000); loop = false; } }
     else if (p.atk) { act = p.atk.name === 'throw' ? throwAction(ch.cls, ch.branch) : (ch.cls === 'pirate' ? 'stabO1' : p.atk.name); fi = p.atk.t / (world.cfg.attack[p.atk.name].delay / 1000); loop = false; }
     else if (p.state === 'climb' && p.ladder) {
       act = p.ladder.l ? 'ladder' : 'rope'; loop = false;
@@ -336,6 +344,7 @@
     var a2 = L.remap ? L.remap(ch, act) : act, idx;
     if (fixed !== null) idx = fixed;
     else if (loop) idx = atIdx(a2, ms);
+    else if (compMs !== null) idx = L.frameAt(a2, compMs);   // poses compuestas (Brandish...): cada fotograma dura su delay real
     else { var n1 = L.frames(act), n2 = L.frames(a2); idx = Math.floor(a2 !== act && n1 > 0 && n2 > 0 ? fi * n2 / n1 : fi); }
     return L.frame(ch, a2, idx);
   }
@@ -360,6 +369,11 @@
     if (dir !== undefined && (FACE_LEFT ? dir > 0 : dir < 0)) ctx.scale(-1, 1);
     ctx.drawImage(img, -ox, -oy); ctx.restore();
   }
+  function weaponType(c) {
+    var MI = window.MapleItems; if (!MI || !c.equip || !c.equip.weapon) return 'sword';
+    var id = MI.idOf ? MI.idOf(c.equip.weapon) : c.equip.weapon, p = String(id).slice(0, 3);
+    return (p === '132' || p === '131') ? 'mace' : 'sword';
+  }
   function drawSkillFx() {
     if (!A.skill) return;
     world.chars.forEach(function (c) {
@@ -372,10 +386,25 @@
         var li2 = Math.min(tr.effect.length - 1, Math.floor(p.atk.t * 1000 / sk.effectDelay));
         if (tf) fxSprite(tf.effect[li2], tr.effect[li2][0], tr.effect[li2][1], p.x, p.y, p.dir); return;
       }
-      var vs = window.MapleSkills.view(sk, c.stats.level), i = Math.min(vs.effect.length - 1, Math.floor(p.atk.t * 1000 / vs.effectDelay));
-      var fxOffY = vs.fxOffsetY || 0;
-      var fxOffX = vs.fxOffsetX || 0;
-      var sfx = A.skill[vs.id]; if (sfx) fxSprite(sfx.effect[i], vs.effect[i].ox, vs.effect[i].oy, p.x + (p.dir * fxOffX), p.y + fxOffY, p.dir);
+      var wType = weaponType(c), vs = window.MapleSkills.view(sk, c.stats.level, wType);
+      var fxOffY = vs.fxOffsetY || 0, fxOffX = vs.fxOffsetX || 0;
+      var sfx = A.skill[vs.id]; 
+      if (sfx) {
+        if (vs.effect0 && sfx.effect0) {
+          var t0 = p.atk.t - (vs.effect0Start !== undefined ? vs.effect0Start : (vs.effectStart || 0));
+          if (t0 >= 0) {
+            var i0 = Math.min(vs.effect0.length - 1, Math.floor(t0 * 1000 / (vs.effect0Delay || vs.effectDelay || 90)));
+            if (sfx.effect0[i0]) fxSprite(sfx.effect0[i0], vs.effect0[i0].ox, vs.effect0[i0].oy, p.x + (p.dir * fxOffX), p.y + fxOffY, p.dir);
+          }
+        }
+        if (vs.effect && sfx.effect) {
+          var t1 = p.atk.t - (vs.effectStart || 0);
+          if (t1 >= 0) {
+            var i = Math.min(vs.effect.length - 1, Math.floor(t1 * 1000 / (vs.effectDelay || 90)));
+            if (sfx.effect[i]) fxSprite(sfx.effect[i], vs.effect[i].ox, vs.effect[i].oy, p.x + (p.dir * fxOffX), p.y + fxOffY, p.dir);
+          }
+        }
+      }
     });
     world.proj.forEach(function (q) {   // estrellas (dibujo provisional hasta tener el sprite)
       if (q.wait > 0 || q.hitT >= 0) return;
@@ -443,7 +472,7 @@
 
   function drawMob(m) {
     if (m.state === 'dead') return;
-    var set = A.mob[m.kind] || {}, list = m.state === 'hit' && set.hit && set.hit.length ? set.hit : set.move;
+    var set = A.mob[m.kind] || {}, list = m.state === 'hit' && set.hit && set.hit.length ? set.hit : (m.state === 'stand' && set.stand && set.stand.length ? set.stand : set.move);
     var alpha = m.state === 'dying' ? 1 - m.t / 0.5 : 1, y = m.y - (m.state === 'dying' ? m.t * 30 : 0);
     var bob = m.state === 'move' ? Math.abs(Math.sin(world.t * 6 + m.spawnX)) * 2 : 0;
     var f = pick(list, Math.floor(world.t * 1000 / DELAY.mob) % Math.max(1, list ? list.length : 1));
@@ -763,6 +792,8 @@
   function frame() { advance(true); updateCam(false); render(); requestAnimationFrame(frame); }
   function bgTick() { if (ready && document.hidden) advance(false); }
   setInterval(bgTick, 1000);
+  addEventListener('pagehide', function () { save(); });   // refrescar/cerrar: guarda ya (jefes, posiciones, buffs)
+  document.addEventListener('visibilitychange', function () { if (document.hidden) save(); });
   try { var wk = new Worker(URL.createObjectURL(new Blob(['setInterval(function(){postMessage(1)},250)'], { type: 'text/javascript' }))); wk.onmessage = bgTick; wk.onerror = function () {}; } catch (e) {}
   window.MAPLE_GAME.focus = function (i) { curMap(); var p = world.chars[i].player; cam.x = p.x; cam.y = p.y - 80; };
   // progreso offline: 25% de lo ganado durante la ausencia (máx. 4 h de ausencia = 1 h de farmeo activo)

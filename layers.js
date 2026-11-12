@@ -23,6 +23,8 @@
   function defaultLook(cls) { var l = LOOKS[cls] || LOOKS.warrior; return { hair: l.hair, face: l.face }; }
   function compOf(action) { var c = D.items[BODY].comp; return c && c[action]; }
   function frames(action) { var cp = compOf(action); if (cp) return cp.length; var b = D.items[BODY].a[action]; return b ? b.length : 0; }
+  // fotograma de una pose según los milisegundos transcurridos y los delays reales de cada fotograma (se queda en el último)
+  function frameAt(action, ms) { var d = delays(action), t = 0; for (var i = 0; i < d.length; i++) { t += d[i]; if (ms < t) return i; } return Math.max(0, d.length - 1); }
   function delays(action) { var cp = compOf(action); if (cp) return cp.map(function (f) { return f.d || 100; }); var b = D.items[BODY].a[action]; return b ? b.map(function (f) { return f.d || 100; }) : []; }
 
   // lista de capas {id, L} de un fotograma
@@ -117,6 +119,6 @@
     for (var i = 0; i < ch2.length; i++) if (weaponFull(it, ch2[i]) && D.items[BODY].a[ch2[i]]) return ch2[i];
     return action;
   }
-  var api = { remap: remap, frame: frame, frames: frames, delays: delays, defaultLook: defaultLook, ready: function () { return !!D; } };
+  var api = { frameAt: frameAt, isComp: compOf, remap: remap, frame: frame, frames: frames, delays: delays, defaultLook: defaultLook, ready: function () { return !!D; } };
   root.MapleLayers = api;
 })(typeof window !== 'undefined' ? window : globalThis);
